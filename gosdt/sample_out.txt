@@ -1,0 +1,2 @@
+~~~~~ Mathias Sampling: ~~~~~
+--- Sampling q=0.1, 	p=10.0 ---

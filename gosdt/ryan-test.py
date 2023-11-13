@@ -5,8 +5,9 @@ import pathlib
 import random
 import argparse
 from sklearn.ensemble import GradientBoostingClassifier
-from model.threshold_guess import compute_thresholds
-from model.gosdt import GOSDT
+import gosdt
+from gosdt.model.threshold_guess import compute_thresholds
+from gosdt.model.gosdt import GOSDT
 
 SAMPLE_TYPES = ["gosdtwG", "mathias"]
 
@@ -69,6 +70,15 @@ def perform_tree_fitting(df):
     # print("# of leaves: {}".format(n_leaves))
     # print(model.tree)
 
+
+def GOSDTwG_deterministic(data, weights, r):
+    S = r * data.shape[0]
+    dups = np.round(weights * S)
+    duped_dataset = data.loc[data.index.repeat(dups)]
+    dataset = duped_dataset.reset_index(drop=True)
+    perform_tree_fitting(dataset)
+
+
 def GOSDTwG_sampling(data, weights, r):
     S = r * data.shape[0]
     # pandas sample w weight
@@ -78,33 +88,28 @@ def GOSDTwG_sampling(data, weights, r):
 
 def MathiasSampling(data, weights, p):
     N = data.shape[0]
-    dup_counts = [int(w * N * p) for w in weights] # "duplicate" each row i, dup_counts[i] times
-
-    sampled_dups = []
-    for i, w in enumerate(weights):
-        # sample each point with prob w*N*p - floor(w*N*p)
-        num_duplicates_kept = 0
-        prob = w*N*p - int(w*N*p)
-        for _ in range(dup_counts[i]):
-            num_duplicates_kept += 1 if random.random() < prob else 0
-
-        sampled_dups.append(num_duplicates_kept)
-
+    weights = np.array(weights)
+    deter_count = np.floor(weights * N * p) # determinisitc part of duplication
+    # print("disc\n", deter_count[:5])
+    # print("p\n", (weights*N*p - deter_count)[:5])
+    stoch_count = (np.random.rand(weights.shape[0]) < (weights*N*p - deter_count)).astype(int) # stochastic part
+    # print("stoch\n", stoch_count[:5])
+    sampled_dups = deter_count + stoch_count # combine to get the samples that should be duplicated
+    # print("dups\n", sampled_dups[:5])
     duped_dataset = data.loc[data.index.repeat(sampled_dups)]
     dataset = duped_dataset.reset_index(drop=True)
     perform_tree_fitting(dataset)
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", type=float, nargs='+', help="% of weights to double")
-    parser.add_argument("--sampling_method", type=str, help="Type of sampling method")
+    parser.add_argument("--sampling_method", type=str, choices=["sampling", "deterministic", "mathias"], help="Type of sampling method")
     parser.add_argument("-r", type=float, help="hyperparam for gosdtwG sampling")
     parser.add_argument("-p", type=float, help="hyperparam for mathias sampling")
     args = parser.parse_args()
 
-    data = pd.read_csv("experiments/datasets/fico.csv")
+    data = pd.read_csv("datasets/fico.csv")
     h = data.columns
     data = pd.DataFrame(data, columns=h)
     # print(data.head())
@@ -129,9 +134,12 @@ if __name__ == "__main__":
         if args.sampling_method == "mathias":
             print(f"--- Sampling q={q}, \tp={args.p} ---")
             MathiasSampling(data, weights, args.p)
-        elif args.sampling_method == "gosdtwG":
+        elif args.sampling_method == "sampling":
             print(f"--- Sampling q={q}, \tr={args.r} ---")
             GOSDTwG_sampling(data, weights, args.r)
+        elif args.sampling_method == "deterministic":
+            print(f"--- Sampling q={q}, \tr={args.r} ---")
+            GOSDTwG_deterministic(data, weights, args.r)
         else:
             print("Invalid sampling method")
             exit()

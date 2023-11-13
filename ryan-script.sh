@@ -22,6 +22,6 @@ for value in "${values[@]}"
 do
     for r in "${rvals[@]}"
     do
-        python gosdt/ryan-test.py -q "$value" -r "$r" --sampling_method gosdtwG >> gosdt/sample_out.txt
+        python gosdt/ryan-test.py -q "$value" -r "$r" --sampling_method sampling >> gosdt/sample_out.txt
     done
 done
