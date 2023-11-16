@@ -8,7 +8,6 @@ import numpy.random as random
 from gosdt.model.threshold_guess import compute_thresholds
 from gosdt.model.gosdt import GOSDT
 
-
 SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias']
 WEIGHTING_TYPES = ['exponential']
 

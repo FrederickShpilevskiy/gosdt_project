@@ -1,0 +1,3 @@
+[submodule "gosdt-guesses"]
+	path = gosdt-guesses
+	url = https://github.com/ubc-systopia/gosdt-guesses.git
