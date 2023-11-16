@@ -143,10 +143,10 @@ if __name__ == '__main__':
     # Write to file
     if args.out is not None:
         import os.path
-        add_header = os.path.exists(args.out) 
+        add_header = not os.path.exists(args.out) 
         with open(args.out, 'a+') as file:
             if add_header:
-                file.write('sampling_method, distribution, p, accuracy, loss, time')
+                file.write('sampling_method, distribution, p, accuracy, loss, time\n')
             file.write(f'{args.sampling_method}, {args.weight_dist}({", ".join(map(str, args.weight_args))}), {args.p}, {accuracy}, {loss}, {time}\n')
             file.close()
     
