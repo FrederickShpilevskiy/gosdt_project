@@ -109,6 +109,34 @@ def sample_weights(dist, N, *kwargs):
         raise RuntimeError(f'Distribution of type {dist} cannot be handled')
 
 
+def single_point_mass(N, p, multiplier=1):
+    # idea: let x^ be some randomly selected point from the dataset with some weight w^
+    #       for every point x_i =/= x^ we have normalized weight wn_i * N * p < 0.5
+    #       suppose all w_i have same the weight of 1, then the normalized weight becomes
+    #       wn_i = 1/[(N-1)*w_i + w^] --> N*p / [(N-1) * w^] < 0.5 so 
+    #       w^ > 2N(p-0.5) - 1
+    # multiplier controls how much mass to allocate to the single point, should be >= 1
+    assert(multiplier > 1)
+    w_hat_idx = random.randint(0,N)
+    weights = [1]*N
+    weights[w_hat_idx] = (2*N*(p-0.5)+1)*multiplier
+    
+    T = sum(weights)
+    for i in range(N):
+        print(weights[i]/T)
+        assert(weights[i]/T < 0.5 if i != w_hat_idx else weights[i]/T > 0.5)
+
+    return weights
+
+def k_outlier_points(N, p, k, base_weight=1):
+    # idea: randomly select some k points to be the outliers each with weight w^=b and 
+    #       normalized weight mu^
+
+    indexs = list(range(N))
+    random.shuffle(indexs)
+    O = indexs[:k]
+    weights = [base_weight]*N
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weight_dist', type=str, choices=WEIGHTING_TYPES, help='Weighting distribution')
