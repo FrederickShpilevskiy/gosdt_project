@@ -11,8 +11,11 @@ from gosdt.model.gosdt import GOSDT
 SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias']
 WEIGHTING_TYPES = ['exponential']
 
+# TODO: 
+# - change loss
+# - 
 
-def perform_tree_fitting(df):
+def perform_tree_fitting(df, weights=None):
     X, y = df.iloc[:,:-1].values, df.iloc[:,-1].values
     h = df.columns[:-1]
     n_est = 40
@@ -61,10 +64,8 @@ def perform_tree_fitting(df):
     print("evaluate the model, extracting tree and scores") 
 
     # get the results
-    train_acc = model.score(X_train, y_train)
+    train_acc = model.score(X_train, y_train, weights)
     train_loss = model.tree.loss()
-    n_leaves = model.leaves()
-    n_nodes = model.nodes()
     time = model.utime
 
     print(f"Training accuracy: {train_acc}")
@@ -72,12 +73,15 @@ def perform_tree_fitting(df):
     print(f"Model training time: {time}")
     return train_acc, train_loss, time
 
+def baseline(data, weights):
+    return perform_tree_fitting(data, weights=weights)
+
 
 def gosdtDeterministic(data, weights, p):
     N = data.shape[0]
     dups = np.round(weights * N * p)
     duped_dataset = data.loc[data.index.repeat(dups)]
-    print(duped_dataset.shape[0], N * p)
+    # print(duped_dataset.shape[0], N * p)
     dataset = duped_dataset.reset_index(drop=True)
     return perform_tree_fitting(dataset)
 
@@ -104,7 +108,7 @@ def mathiasSampling(data, weights, p):
 
 def sample_weights(dist, N, *kwargs):
     if dist == 'exponential':
-        return random.exponential(scale=float(kwargs[0]), size=N)
+        return random.exponential(scale=1/float(kwargs[0]), size=N)
     else:
         raise RuntimeError(f'Distribution of type {dist} cannot be handled')
 
@@ -136,6 +140,8 @@ if __name__ == '__main__':
         accuracy, loss, time = gosdtSampling(data, weights, args.p)
     elif args.sampling_method == 'deterministic':
         accuracy, loss, time = gosdtDeterministic(data, weights, args.p)
+    elif args.sampling_method == 'baseline':
+        accuracy, loss, time = baseline(data, weights)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
@@ -145,8 +151,8 @@ if __name__ == '__main__':
         add_header = not os.path.exists(args.out) 
         with open(args.out, 'a+') as file:
             if add_header:
-                file.write('sampling_method, distribution, p, accuracy, loss, time\n')
-            file.write(f'{args.sampling_method}, {args.weight_dist}({", ".join(map(str, args.weight_args))}), {args.p}, {accuracy}, {loss}, {time}\n')
+                file.write('sampling_method,distribution,p,accuracy,loss,time\n')
+            file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {accuracy}, {loss}, {time}\n')
             file.close()
     
             
