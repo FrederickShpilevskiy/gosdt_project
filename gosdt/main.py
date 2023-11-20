@@ -8,35 +8,35 @@ import numpy.random as random
 from gosdt.model.threshold_guess import compute_thresholds
 from gosdt.model.gosdt import GOSDT
 
-SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias']
+SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline']
 WEIGHTING_TYPES = ['exponential']
 
-# TODO: 
-# - change loss
-# - 
+# TODO:
+# - change weights
+# - make sure samplers are correct
 
-def perform_tree_fitting(df, weights=None):
-    X, y = df.iloc[:,:-1].values, df.iloc[:,-1].values
-    h = df.columns[:-1]
+def weighted_loss(model, X_train_dup, y_train_dup, X_train, y_train, weights):
+    regularizer = model.tree.loss() - model.error(X_train_dup, y_train_dup)
+    return model.error(X_train, y_train, weight=weights) + regularizer
+
+
+# returns model
+def preprocess_dataset(dataset):
+    X, y = dataset.iloc[:,:-1].values, dataset.iloc[:,-1].values
     n_est = 40
     max_depth = 1
 
     # guess thresholds
-    X = pd.DataFrame(X, columns=h)
+    X = pd.DataFrame(X, columns=dataset.columns[:-1])
     # print("X:", X.shape)
     # print("y:",y.shape)
     X_train, thresholds, header, threshold_guess_time = compute_thresholds(X, y, n_est, max_depth)
     y_train = pd.DataFrame(y)
 
     # guess lower bound
-    start_time = t.perf_counter()
     clf = GradientBoostingClassifier(n_estimators=n_est, max_depth=max_depth, random_state=42)
     clf.fit(X_train, y_train.values.flatten())
     warm_labels = clf.predict(X_train)
-
-    elapsed_time = t.perf_counter() - start_time
-
-    lb_time = elapsed_time
 
     # save the labels as a tmp file and return the path to it.
     labelsdir = pathlib.Path('/tmp/warm_lb_labels')
@@ -45,7 +45,6 @@ def perform_tree_fitting(df, weights=None):
     labelpath = labelsdir / 'warm_label.tmp'
     labelpath = str(labelpath)
     pd.DataFrame(warm_labels, columns=["class_labels"]).to_csv(labelpath, header="class_labels",index=None)
-
 
     # train GOSDT model
     config = {
@@ -57,42 +56,44 @@ def perform_tree_fitting(df, weights=None):
                 "similar_support": False,
             }
 
-    model = GOSDT(config)
+    return GOSDT(config), pd.concat((X_train, y_train), axis=1)
 
-    model.fit(X_train, y_train)
+
+def perform_tree_fitting(model, data_dup, data, weights):
+    X_dup, y_dup = pd.DataFrame(data_dup.iloc[:,:-1].values), pd.DataFrame(data_dup.iloc[:,-1].values)
+    X, y = pd.DataFrame(data.iloc[:,:-1].values), pd.DataFrame(data.iloc[:,-1].values)
+
+    model.fit(X_dup, y_dup)
 
     print("evaluate the model, extracting tree and scores") 
 
     # get the results
-    train_acc = model.score(X_train, y_train, weights)
-    train_loss = model.tree.loss()
-    time = model.utime
+    train_loss = weighted_loss(model, X_dup, y_dup, X, y, weights)
 
-    print(f"Training accuracy: {train_acc}")
     print(f"Training loss: {train_loss}")
-    print(f"Model training time: {time}")
-    return train_acc, train_loss, time
-
-def baseline(data, weights):
-    return perform_tree_fitting(data, weights=weights)
+    return train_loss
 
 
-def gosdtDeterministic(data, weights, p):
+def baseline(model, data, weights):
+    return perform_tree_fitting(model, data, data, weights)
+
+
+def gosdtDeterministic(model, data, weights, p):
     N = data.shape[0]
     dups = np.round(weights * N * p)
     duped_dataset = data.loc[data.index.repeat(dups)]
     # print(duped_dataset.shape[0], N * p)
-    dataset = duped_dataset.reset_index(drop=True)
-    return perform_tree_fitting(dataset)
+    duped_dataset = duped_dataset.reset_index(drop=True)
+    return perform_tree_fitting(model, duped_dataset, data, weights)
 
 
-def gosdtSampling(data, weights, p):
+def gosdtSampling(model, data, weights, p):
     N = data.shape[0]
     sampled_data = data.sample(n=int(N * p), replace=True, weights=weights, ignore_index=True)
-    return perform_tree_fitting(sampled_data)
+    return perform_tree_fitting(model, sampled_data, data, weights)
 
 
-def mathiasSampling(data, weights, p):
+def mathiasSampling(model, data, weights, p):
     N = data.shape[0]
     deter_count = np.floor(weights * N * p) # determinisitc part of duplication
     # print("disc\n", deter_count[:5])
@@ -102,8 +103,8 @@ def mathiasSampling(data, weights, p):
     sampled_dups = deter_count + stoch_count # combine to get the samples that should be duplicated
     # print("dups\n", sampled_dups[:5])
     duped_dataset = data.loc[data.index.repeat(sampled_dups)]
-    dataset = duped_dataset.reset_index(drop=True)
-    return perform_tree_fitting(dataset)
+    duped_dataset = duped_dataset.reset_index(drop=True)
+    return perform_tree_fitting(model, duped_dataset, data, weights)
 
 
 def sample_weights(dist, N, *kwargs):
@@ -126,22 +127,24 @@ if __name__ == '__main__':
     data = pd.read_csv('datasets/fico.csv')
     N = data.shape[0]
 
+    # Preporcess dataset and get model
+    model, data = preprocess_dataset(data)
+
     # Sample weights from distribution
     weights = sample_weights(args.weight_dist, N, *args.weight_args)
-    # print(weights[:10])
     weights = weights / weights.sum() # Normalize weights
-    # print(weights[:10])
-    # raise RuntimeError('PAUSE')
+    
+    # Dup dataset and fit model
     print(f'Weight distribution {args.weight_dist}({", ".join(map(str, args.weight_args))}), \tp={args.p}')
     accuracy, loss, time = 0, 0, 0
     if args.sampling_method == 'mathias':
-        accuracy, loss, time = mathiasSampling(data, weights, args.p)
+        loss = mathiasSampling(model, data, weights, args.p)
     elif args.sampling_method == 'sampling':
-        accuracy, loss, time = gosdtSampling(data, weights, args.p)
+        loss = gosdtSampling(model, data, weights, args.p)
     elif args.sampling_method == 'deterministic':
-        accuracy, loss, time = gosdtDeterministic(data, weights, args.p)
+        loss = gosdtDeterministic(model, data, weights, args.p)
     elif args.sampling_method == 'baseline':
-        accuracy, loss, time = baseline(data, weights)
+        loss = baseline(model, data, weights)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
@@ -151,8 +154,8 @@ if __name__ == '__main__':
         add_header = not os.path.exists(args.out) 
         with open(args.out, 'a+') as file:
             if add_header:
-                file.write('sampling_method,distribution,p,accuracy,loss,time\n')
-            file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {accuracy}, {loss}, {time}\n')
+                file.write('sampling_method,distribution,p,loss\n')
+            file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
             file.close()
     
             
