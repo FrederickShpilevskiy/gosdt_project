@@ -8,7 +8,7 @@ import numpy.random as random
 from gosdt.model.threshold_guess import compute_thresholds
 from gosdt.model.gosdt import GOSDT
 
-SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline']
+SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline', 'resample_weight']
 WEIGHTING_TYPES = ['exponential']
 
 # TODO:
@@ -73,6 +73,44 @@ def perform_tree_fitting(model, data_dup, data, weights):
     print(f"Training loss: {train_loss}")
     return train_loss
 
+def calc_weighted_loss(correct, weights):
+    loss = 0
+    for v, i in enumerate(correct):
+        if not v:
+            loss += weights[i]
+    
+    return loss
+
+def sample_two_normal_dists(preds, mu_right, mu_wrong):
+    ret = np.copy(preds)
+    for v, i in enumerate(preds):
+        if v:
+            ret[i] = np.random.normal(mu_right, 1, 1)[0]
+        else:
+            ret[i] = np.random.normal(mu_wrong, 1, 1)[0]
+
+    return ret
+
+def resample_and_compare(base_model, data, weights, p):
+    X, y = data.iloc[:,:-1].values, data.iloc[:,-1].values
+    h = data.columns[:-1]
+    X = pd.DataFrame(X, columns=h)
+
+    gosdtDeterministic(base_model, data, weights, p)
+
+    X_hat = base_model.predict(X)
+    correct = y == X_hat
+    new_weights = sample_two_normal_dists(correct, 1, 5)
+    init_loss = calc_weighted_loss(correct, new_weights)
+    w_total = sum(new_weights)
+    w_norm = new_weights/w_total
+    
+    gosdtDeterministic(base_model, data, w_norm, p)
+    
+    X_hat = base_model.predict(X)
+    correct = y == X_hat
+    refit_loss = calc_weighted_loss(correct, new_weights)
+    return init_loss - refit_loss
 
 def baseline(model, data, weights):
     return perform_tree_fitting(model, data, data, weights)
@@ -145,6 +183,8 @@ if __name__ == '__main__':
         loss = gosdtDeterministic(model, data, weights, args.p)
     elif args.sampling_method == 'baseline':
         loss = baseline(model, data, weights)
+    elif args.sampling_method == 'resample_weight':
+        loss = resample_and_compare(model, data, weights, args.p)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
