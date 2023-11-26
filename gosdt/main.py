@@ -75,20 +75,20 @@ def perform_tree_fitting(model, data_dup, data, weights):
 
 def calc_weighted_loss(correct, weights):
     loss = 0
-    for v, i in enumerate(correct):
+    for i, v in enumerate(correct):
         if not v:
             loss += weights[i]
     
     return loss
 
-def sample_two_normal_dists(preds, mu_right, mu_wrong):
-    ret = np.copy(preds)
+def sample_two_gamma_dists(preds, beta_right, beta_wrong):
+    ret = []
     for v, i in enumerate(preds):
         if v:
-            ret[i] = np.random.normal(mu_right, 1, 1)[0]
+            ret.append(np.random.gamma(beta_right, 1))
         else:
-            ret[i] = np.random.normal(mu_wrong, 1, 1)[0]
-
+            ret.append(np.random.gamma(beta_wrong, 1))
+    ret = np.array(ret)
     return ret
 
 def resample_and_compare(base_model, data, weights, p):
@@ -100,16 +100,18 @@ def resample_and_compare(base_model, data, weights, p):
 
     X_hat = base_model.predict(X)
     correct = y == X_hat
-    new_weights = sample_two_normal_dists(correct, 1, 5)
+    new_weights = sample_two_gamma_dists(correct, 2, 5)
     init_loss = calc_weighted_loss(correct, new_weights)
     w_total = sum(new_weights)
     w_norm = new_weights/w_total
+    print(f"--- init loss: {init_loss} ---")
     
     gosdtDeterministic(base_model, data, w_norm, p)
-    
+
     X_hat = base_model.predict(X)
     correct = y == X_hat
     refit_loss = calc_weighted_loss(correct, new_weights)
+    print(f"--- after loss: {refit_loss} -- ")
     return init_loss - refit_loss
 
 def baseline(model, data, weights):
