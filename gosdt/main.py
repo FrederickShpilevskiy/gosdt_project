@@ -8,8 +8,11 @@ import numpy.random as random
 from gosdt.model.threshold_guess import compute_thresholds
 from gosdt.model.gosdt import GOSDT
 
-SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline', 'resample_weight']
+SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline', 
+                'resample_weight_deterministic', 'resample_weight_baseline']
 WEIGHTING_TYPES = ['exponential']
+
+threshold_before = True 
 
 # TODO:
 # - change weights
@@ -32,6 +35,9 @@ def preprocess_dataset(dataset):
     # print("y:",y.shape)
     X_train, thresholds, header, threshold_guess_time = compute_thresholds(X, y, n_est, max_depth)
     y_train = pd.DataFrame(y)
+
+    # print(thresholds)
+    # print(header)
 
     # guess lower bound
     clf = GradientBoostingClassifier(n_estimators=n_est, max_depth=max_depth, random_state=42)
@@ -56,7 +62,7 @@ def preprocess_dataset(dataset):
                 "similar_support": False,
             }
 
-    return GOSDT(config), pd.concat((X_train, y_train), axis=1)
+    return GOSDT(config), X_train, y_train
 
 
 def perform_tree_fitting(model, data_dup, data, weights):
@@ -91,24 +97,64 @@ def sample_two_gamma_dists(preds, beta_right, beta_wrong):
     ret = np.array(ret)
     return ret
 
-def resample_and_compare(base_model, data, weights, p):
+def resample_and_compare_deterministic(base_model, data, weights, p):
+    data_cp = data.copy()
+    N = data.shape[0]
+    print(f"N: {N}\t N':{N*p}")
+    if threshold_before:
+        model_init, X_train, y_train = preprocess_dataset(data_cp)
+    else:
+        dups = np.round(weights * N * p)
+        duped_dataset = data_cp.loc[data_cp.index.repeat(dups)]
+        duped_dataset = duped_dataset.reset_index(drop=True)
+        model_init, X_train, y_train = preprocess_dataset(duped_dataset)
+
+    model_init.fit(X_train, y_train)
+
     X, y = data.iloc[:,:-1].values, data.iloc[:,-1].values
     h = data.columns[:-1]
     X = pd.DataFrame(X, columns=h)
 
-    gosdtDeterministic(base_model, data, weights, p)
-
-    X_hat = base_model.predict(X)
+    X_hat = model_init.predict(X)
     correct = y == X_hat
     new_weights = sample_two_gamma_dists(correct, 2, 5)
     init_loss = calc_weighted_loss(correct, new_weights)
+    print(f"--- init loss: {init_loss} ---")
+
     w_total = sum(new_weights)
     w_norm = new_weights/w_total
-    print(f"--- init loss: {init_loss} ---")
-    
-    gosdtDeterministic(base_model, data, w_norm, p)
 
-    X_hat = base_model.predict(X)
+    data_new = data.copy()
+    dups_new = np.round(w_norm * N * p)
+    duped_dataset_new = data_new.loc[data_new.index.repeat(dups_new)]
+    duped_dataset_new = duped_dataset_new.reset_index(drop=True)
+
+    new_model, X_train_new, y_train_new = preprocess_dataset(duped_dataset_new)
+
+    new_model.fit(X_train_new, y_train_new)
+    X_hat = new_model.predict(X)
+    correct = y == X_hat
+    refit_loss = calc_weighted_loss(correct, new_weights)
+    print(f"--- after loss: {refit_loss} -- ")
+    return init_loss - refit_loss
+
+def resample_and_compare_baseline(model, data, weights):
+    init_loss = perform_tree_fitting(model, data, data, weights)
+
+    X, y = data.iloc[:,:-1].values, data.iloc[:,-1].values
+    h = data.columns[:-1]
+    X = pd.DataFrame(X, columns=h)
+    X_hat = model.predict(X)
+    correct = y == X_hat
+    new_weights = sample_two_gamma_dists(correct, 2, 5)
+    init_loss = calc_weighted_loss(correct, new_weights)
+    print(f"--- init loss: {init_loss} ---")
+
+    w_total = sum(new_weights)
+    w_norm = new_weights/w_total
+
+    new_model_loss = perform_tree_fitting(model, data, data, new_weights)
+    X_hat = model.predict(X)
     correct = y == X_hat
     refit_loss = calc_weighted_loss(correct, new_weights)
     print(f"--- after loss: {refit_loss} -- ")
@@ -168,7 +214,9 @@ if __name__ == '__main__':
     N = data.shape[0]
 
     # Preporcess dataset and get model
-    model, data = preprocess_dataset(data)
+    model, X_train, y_train = preprocess_dataset(data)
+    data = pd.concat((X_train, y_train), axis=1)
+    # model = None
 
     # Sample weights from distribution
     weights = sample_weights(args.weight_dist, N, *args.weight_args)
@@ -185,8 +233,10 @@ if __name__ == '__main__':
         loss = gosdtDeterministic(model, data, weights, args.p)
     elif args.sampling_method == 'baseline':
         loss = baseline(model, data, weights)
-    elif args.sampling_method == 'resample_weight':
-        loss = resample_and_compare(model, data, weights, args.p)
+    elif args.sampling_method == 'resample_weight_deterministic':
+        loss = resample_and_compare_deterministic(model, data, weights, args.p)
+    elif args.sampling_method == 'resample_weight_baseline':
+        loss = resample_and_compare_baseline(model, data, weights)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
