@@ -9,10 +9,11 @@ from gosdt.model.threshold_guess import compute_thresholds
 from gosdt.model.gosdt import GOSDT
 
 SAMPLE_TYPES = ['sampling', 'deterministic', 'mathias', 'baseline', 
-                'resample_weight_deterministic', 'resample_weight_baseline']
+                'resample_weight_deterministic', 'resample_weight_baseline',
+                'no_weights_vs_weights']
 WEIGHTING_TYPES = ['exponential']
 
-threshold_before = True 
+threshold_before = False 
 
 # TODO:
 # - change weights
@@ -35,7 +36,7 @@ def preprocess_dataset(dataset):
     # print("y:",y.shape)
     X_train, thresholds, header, threshold_guess_time = compute_thresholds(X, y, n_est, max_depth)
     y_train = pd.DataFrame(y)
-
+    # print("Thresholds:")
     # print(thresholds)
     # print(header)
 
@@ -91,23 +92,27 @@ def sample_two_gamma_dists(preds, beta_right, beta_wrong):
     ret = []
     for v, i in enumerate(preds):
         if v:
-            ret.append(np.random.gamma(beta_right, 1))
+            ret.append(np.random.gamma(beta_right, 0.25))
         else:
-            ret.append(np.random.gamma(beta_wrong, 1))
+            ret.append(np.random.gamma(beta_wrong, 0.25))
     ret = np.array(ret)
     return ret
 
-def resample_and_compare_deterministic(base_model, data, weights, p):
-    data_cp = data.copy()
+def resample_and_compare_deterministic(data, weights, p):
+    data_cp = data.copy(deep=True)
     N = data.shape[0]
-    print(f"N: {N}\t N':{N*p}")
-    if threshold_before:
-        model_init, X_train, y_train = preprocess_dataset(data_cp)
-    else:
-        dups = np.round(weights * N * p)
-        duped_dataset = data_cp.loc[data_cp.index.repeat(dups)]
-        duped_dataset = duped_dataset.reset_index(drop=True)
-        model_init, X_train, y_train = preprocess_dataset(duped_dataset)
+    # print(f"N: {N}\t N':{N*p}")
+    dups = np.round(weights * N * p)
+    duped_dataset = data_cp.loc[data_cp.index.repeat(dups)]
+    duped_dataset = duped_dataset.reset_index(drop=True)
+    model_init, X_train, y_train = preprocess_dataset(duped_dataset)
+
+    # print(" --- first dataset: ---")
+    # print(duped_dataset.columns)
+    # print("--- first x train --- ")
+    # print(X_train.columns)
+    # print(" --- effect on original ---")
+    # print(data.columns)
 
     model_init.fit(X_train, y_train)
 
@@ -117,26 +122,60 @@ def resample_and_compare_deterministic(base_model, data, weights, p):
 
     X_hat = model_init.predict(X)
     correct = y == X_hat
-    new_weights = sample_two_gamma_dists(correct, 2, 5)
+    new_weights = sample_two_gamma_dists(correct, 2, 4)
     init_loss = calc_weighted_loss(correct, new_weights)
     print(f"--- init loss: {init_loss} ---")
 
     w_total = sum(new_weights)
-    w_norm = new_weights/w_total
+    w_norm = new_weights.copy()
+    w_norm = w_norm/w_total
 
-    data_new = data.copy()
+    data_new = data.copy(deep=True)
     dups_new = np.round(w_norm * N * p)
     duped_dataset_new = data_new.loc[data_new.index.repeat(dups_new)]
     duped_dataset_new = duped_dataset_new.reset_index(drop=True)
 
     new_model, X_train_new, y_train_new = preprocess_dataset(duped_dataset_new)
 
+    # print(" --- next dataset: ---")
+    # print(duped_dataset_new.columns)
+    # print(" --- X_train new ---")
+    # print(X_train_new.columns)
+
     new_model.fit(X_train_new, y_train_new)
     X_hat = new_model.predict(X)
     correct = y == X_hat
     refit_loss = calc_weighted_loss(correct, new_weights)
     print(f"--- after loss: {refit_loss} -- ")
-    return init_loss - refit_loss
+    return init_loss/w_total, refit_loss/w_total
+
+def no_weights_vs_weighted(data, weights, p):
+    data_cp_init = data.copy(deep=True)
+    N = data.shape[0]
+    model_init, X_train_init, y_train_init = preprocess_dataset(data_cp_init)
+
+    model_init.fit(X_train_init, y_train_init)
+
+    data_cp = data.copy(deep=True)
+    dups = np.round(weights * N * p)
+    duped_dataset = data_cp.loc[data_cp.index.repeat(dups)]
+    duped_dataset = duped_dataset.reset_index(drop=True)
+    model_weighted, X_train_weighted, y_train_weighted = preprocess_dataset(duped_dataset)
+    model_weighted.fit(X_train_weighted, y_train_weighted)
+
+    X, y = data.iloc[:,:-1].values, data.iloc[:,-1].values
+    h = data.columns[:-1]
+    X = pd.DataFrame(X, columns=h)
+
+    X_hat_init = model_init.predict(X)
+    correct_init = y == X_hat_init
+    init_loss = calc_weighted_loss(correct_init, weights)
+
+    X_hat_weighted = model_weighted.predict(X)
+    correct_weighted = y == X_hat_weighted
+    weighted_loss = calc_weighted_loss(correct_weighted, weights)
+
+    return init_loss, weighted_loss
 
 def resample_and_compare_baseline(model, data, weights):
     init_loss = perform_tree_fitting(model, data, data, weights)
@@ -214,9 +253,9 @@ if __name__ == '__main__':
     N = data.shape[0]
 
     # Preporcess dataset and get model
-    model, X_train, y_train = preprocess_dataset(data)
-    data = pd.concat((X_train, y_train), axis=1)
-    # model = None
+    # model, X_train, y_train = preprocess_dataset(data)
+    # data = pd.concat((X_train, y_train), axis=1)
+    model = None
 
     # Sample weights from distribution
     weights = sample_weights(args.weight_dist, N, *args.weight_args)
@@ -225,6 +264,7 @@ if __name__ == '__main__':
     # Dup dataset and fit model
     print(f'Weight distribution {args.weight_dist}({", ".join(map(str, args.weight_args))}), \tp={args.p}')
     accuracy, loss, time = 0, 0, 0
+    init_wLoss, init_uwLoss, init_acc, retrain_wLoss, retrain_uwLoss, retrain_acc = 0, 0, 0, 0, 0, 0
     if args.sampling_method == 'mathias':
         loss = mathiasSampling(model, data, weights, args.p)
     elif args.sampling_method == 'sampling':
@@ -234,20 +274,29 @@ if __name__ == '__main__':
     elif args.sampling_method == 'baseline':
         loss = baseline(model, data, weights)
     elif args.sampling_method == 'resample_weight_deterministic':
-        loss = resample_and_compare_deterministic(model, data, weights, args.p)
+        init_loss, retrain_loss = resample_and_compare_deterministic(data, weights, args.p)
+    elif args.sampling_method == 'no_weights_vs_weights':
+        init_loss, retrain_loss = no_weights_vs_weighted(data, weights, args.p)
     elif args.sampling_method == 'resample_weight_baseline':
         loss = resample_and_compare_baseline(model, data, weights)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
+    two_loss_reporting = ["resample_weight_deterministic", "no_weights_vs_weights"]
     # Write to file
     if args.out is not None:
         import os.path
-        add_header = not os.path.exists(args.out) 
+        add_header = not os.path.exists(args.out)
         with open(args.out, 'a+') as file:
-            if add_header:
+            if add_header and args.sampling_method in two_loss_reporting:
+                file.write('sampling_method,distribution,param,p,loss,loss_type\n')
+            elif add_header:
                 file.write('sampling_method,distribution,p,loss\n')
-            file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
+            if args.sampling_method in two_loss_reporting:
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"Initial"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {retrain_loss}, {"Retrained"}\n')
+            else:
+                file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
             file.close()
     
             
