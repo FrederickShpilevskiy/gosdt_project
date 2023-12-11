@@ -21,7 +21,8 @@ threshold_before = True
 
 def weighted_loss(model, X_train_dup, y_train_dup, X_train, y_train, weights):
     regularizer = model.tree.loss() - model.error(X_train_dup, y_train_dup)
-    return model.error(X_train, y_train, weight=weights) + regularizer
+    # TODO: some error here
+    return model.error(X_train, y_train, weight=weights)
 
 
 def apply_thresholds(dataset, thresholds, n_est, d, lr=0.1, backselect=True):
@@ -190,23 +191,15 @@ def resample_and_compare_baseline(data, weights):
     # predict
     X, y = apply_thresholds(data, thresholds, n_est, max_depth)
     y_hat = model.predict(X)
-    correct = y.to_numpy() == y_hat
+    correct = y.to_numpy().reshape(-1) == y_hat
     # sample weights according to incorrectly predicted
-    new_weights = sample_two_gamma_dists(correct, 1, 100)
+    new_weights = sample_two_gamma_dists(correct, 1, 100_000)
     new_weights = new_weights / new_weights.sum()
     new_weight_loss = weighted_loss(model, X, y, X, y, new_weights)
     print('Train loss new weighting:', new_weight_loss)
-
-    raise RuntimeError("PAUSE")
-    # w_total = sum(new_weights)
-    # w_norm = new_weights/w_total
-
-    # new_model_loss = perform_tree_fitting(model, data, data, new_weights)
-    # X_hat = model.predict(X)
-    # correct = y == X_hat
-    # refit_loss = calc_weighted_loss(correct, new_weights)
-    # print(f"--- after loss: {refit_loss} -- ")
-    # return init_loss - refit_loss
+    new_weight_trained_loss = mathiasSampling(data, new_weights, 10)
+    print('Train loss model on new weighting', new_weight_trained_loss)
+    return init_loss - new_weight_trained_loss
 
 
 def baseline(data, weights):
