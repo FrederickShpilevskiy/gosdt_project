@@ -1,0 +1,7 @@
+{
+    "grid": {"combine": [{"--weight_dist": ["exponential"]},
+                         {"--weight_args": [[1000],[100], [10], [0.5]]},
+                         {"--out": ["out.csv"]},
+                         {"-p": [1,5,10]},
+                         {"--sampling_method": ["no_weights_vs_weights"]}]}
+  }

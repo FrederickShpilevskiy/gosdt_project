@@ -193,33 +193,68 @@ def resample_and_compare_deterministic(data, weights, p):
     print(f"--- after loss: {refit_loss} -- ")
     return init_loss/w_total, refit_loss/w_total
 
-def no_weights_vs_weighted(data, weights, p):
+
+# Compare tree without weights to one with weights
+def no_weights_vs_weighted(data, weights, p, max_depth=1, n_est=40):
     data_cp_init = data.copy(deep=True)
     N = data.shape[0]
-    model_init, X_train_init, y_train_init = preprocess_dataset(data_cp_init)
+    model_init, X_train_init, y_train_init, thresholds_init = preprocess_dataset(data_cp_init, 
+                                                                                 n_est, max_depth)
 
     model_init.fit(X_train_init, y_train_init)
+    eval_data_copy = data.copy()
+    X_eval, y_eval = eval_data_copy.iloc[:,:-1].values, eval_data_copy.iloc[:,-1].values
+    h_eval = eval_data_copy.columns[:-1]
+    X_eval = pd.DataFrame(X_eval, columns=h_eval)
+    # print('-----------------')
+    # print(X_eval.columns)
+    X_eval = cut(X_eval, thresholds_init)
+    print(X_eval.columns)
+    print(X_eval)
+
+    X_hat_init = model_init.predict(X_eval)
+    correct_init = y_eval == X_hat_init
+    correct_init_cp = correct_init.copy()
+    init_wloss = calc_weighted_loss(correct_init_cp, weights)
+    correct_init_cp = correct_init.copy()
+    init_acc = correct_init_cp.sum()/correct_init_cp.shape[0]
+
+    # ----------------------------------------------------------
+    # Weighted Tree
+    # ----------------------------------------------------------
 
     data_cp = data.copy(deep=True)
     dups = np.round(weights * N * p)
     duped_dataset = data_cp.loc[data_cp.index.repeat(dups)]
     duped_dataset = duped_dataset.reset_index(drop=True)
-    model_weighted, X_train_weighted, y_train_weighted = preprocess_dataset(duped_dataset)
+    model_weighted, X_train_weighted, y_train_weighted, threshold_weighted = preprocess_dataset(duped_dataset, 
+                                                                                             n_est, max_depth)
+
+    print('-----------------')
+    print(X_train_weighted.columns)
     model_weighted.fit(X_train_weighted, y_train_weighted)
+    eval_data_copy_2 = data.copy()
+    X_eval_2, y_eval_2 = eval_data_copy_2.iloc[:,:-1].values, eval_data_copy_2.iloc[:,-1].values
+    h_eval_2 = eval_data_copy_2.columns[:-1]
+    X_eval_2 = pd.DataFrame(X_eval_2, columns=h_eval_2)
 
-    X, y = data.iloc[:,:-1].values, data.iloc[:,-1].values
-    h = data.columns[:-1]
-    X = pd.DataFrame(X, columns=h)
+    # print('-----------------')
+    # print(X_eval.columns)
+    X_eval_2 = cut(X_eval_2, threshold_weighted)
+    # print(X_eval.columns)
+    # print(X_eval)
 
-    X_hat_init = model_init.predict(X)
-    correct_init = y == X_hat_init
-    init_loss = calc_weighted_loss(correct_init, weights)
+    X_hat_weighted = model_weighted.predict(X_eval_2)
+    correct_weighted = y_eval_2 == X_hat_weighted
+    correct_weighted_cp = correct_weighted.copy()
+    weighted_wloss = calc_weighted_loss(correct_weighted_cp, weights)
+    correct_weighted_cp = correct_weighted.copy()
+    weighted_acc = correct_weighted_cp.sum()/correct_weighted_cp.shape[0]
 
-    X_hat_weighted = model_weighted.predict(X)
-    correct_weighted = y == X_hat_weighted
-    weighted_loss = calc_weighted_loss(correct_weighted, weights)
+    w_total = sum(weights)
 
-    return init_loss, weighted_loss
+    print(f"({init_wloss/w_total}, {init_acc}, {weighted_wloss/w_total}, {weighted_acc})")
+    return init_wloss/w_total, init_acc, weighted_wloss/w_total, weighted_acc  
 
 
 def resample_and_compare_baseline(data, weights):
@@ -317,13 +352,14 @@ if __name__ == '__main__':
     elif args.sampling_method == 'resample_weight_deterministic':
         init_loss, retrain_loss = resample_and_compare_deterministic(data, weights, args.p)
     elif args.sampling_method == 'no_weights_vs_weights':
-        init_loss, retrain_loss = no_weights_vs_weighted(data, weights, args.p)
+        init_loss, init_acc, weighted_loss, weighted_acc = no_weights_vs_weighted(data, weights, args.p)
     elif args.sampling_method == 'resample_weight_baseline':
         loss = resample_and_compare_baseline(data, weights)
     else:
         raise RuntimeError(f'Sampling of type {args.sampling_method} cannot be handled')
     
-    two_loss_reporting = ["resample_weight_deterministic", "no_weights_vs_weights"]
+    two_loss_reporting = ["resample_weight_deterministic"]
+    four_less_reporting = ["no_weights_vs_weights"]
     # Write to file
     if args.out is not None:
         import os.path
@@ -331,11 +367,18 @@ if __name__ == '__main__':
         with open(args.out, 'a+') as file:
             if add_header and args.sampling_method in two_loss_reporting:
                 file.write('sampling_method,distribution,param,p,loss,loss_type\n')
+            if add_header and args.sampling_method in four_less_reporting:
+                file.write('sampling_method,distribution,param,p,loss,loss_type\n')
             elif add_header:
                 file.write('sampling_method,distribution,p,loss\n')
             if args.sampling_method in two_loss_reporting:
                 file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"Initial"}\n')
                 file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {retrain_loss}, {"Retrained"}\n')
+            elif args.sampling_method in four_less_reporting:
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"initial_weighted_loss"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_acc}, {"initial_accuracy"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_loss}, {"weighted_weighted_loss"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_acc}, {"weighted_accuracy"}\n')
             else:
                 file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
             file.close()
