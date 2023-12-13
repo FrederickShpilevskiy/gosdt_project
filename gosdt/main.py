@@ -236,7 +236,11 @@ if __name__ == '__main__':
     parser.add_argument('--sampling_method', type=str, choices=SAMPLE_TYPES, help='Type of sampling method')
     parser.add_argument('-p', type=float, help='Dataset multiplier')
     parser.add_argument('--out', type=str, help='Where results are written to')
+    parser.add_argument('--seed', type=int, help='Seed for weight construction', default=0)
     args = parser.parse_args()
+
+    # Set seed
+    np.random.seed(args.seed)
 
     # Load dataset
     data = pd.read_csv('datasets/fico.csv')
@@ -271,7 +275,7 @@ if __name__ == '__main__':
         with open(args.out, 'a+') as file:
             if add_header:
                 file.write('sampling_method,distribution,p,loss\n')
-            file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
+            file.write(f'{args.sampling_method},{args.weight_dist}({";".join(map(str, args.weight_args))}),{args.p},{loss}\n')
             file.close()
 
 

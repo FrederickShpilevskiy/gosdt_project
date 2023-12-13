@@ -1,7 +1,7 @@
 {
     "grid": {"combine": [{"--weight_dist": ["binary"]},
-                         {"--weight_args": [[0.2, 10, 1]]},
+                         {"--weight_args": [[0.2, 100, 1], [0.1, 100, 1], [0.2, 10, 1]]},
                          {"--out": ["out.csv"]},
-                         {"-p": [10]},
+                         {"-p": [1, 10, 100]},
                          {"--sampling_method": ["baseline", "mathias", "deterministic", "sampling"]}]}
   }
