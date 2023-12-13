@@ -18,10 +18,26 @@ def compare_sampling_methods(df):
     plt.savefig(f'../sampling_methods.png')
 
 def resampling_error(df):
-    df["N'"] = df['p']*N
-    print(df)
-    sns.catplot(data=df, col="N'",x="param", y="loss", kind="bar", hue="loss_type")
-
+    weighted_loss = True 
+    # future thing?: param for loss types
+    if weighted_loss:
+        select_types = ["base_gosdt_weighted_loss", "duplication_weighted_loss"]
+    else:
+        select_types = ["base_gosdt_accuracy", "duplication_accuracy"]
+    df['loss_type'] = df['loss_type'].astype(str)
+    df['loss_type'] = df['loss_type'].str.strip()
+    # df.query("loss_type in @select_types", inplace=True)
+    print(df.dtypes)
+    df_selected = df[df['loss_type'].isin(select_types)]
+    df_selected["N'"] = df_selected['p']*N
+    print(df_selected)
+    # plot = sns.catplot(data=df_selected, col="N'",x="param", y="loss", kind="bar", hue="loss_type")
+    plot = sns.catplot(data=df_selected, col="N'",x="loss_type", y="loss", kind="bar")
+    plot.fig.subplots_adjust(top=.8)
+    if weighted_loss:
+        plot.fig.suptitle("Weighted Loss with constant weights")
+    else:
+        plot.fig.suptitle("Accuracy (pretend the y says accuracy)")
     plt.savefig("out.png") 
                     
 if __name__ == '__main__':

@@ -130,7 +130,10 @@ def calc_weighted_loss(correct, weights):
     
     return loss
 
-
+# diff in weight is what matters, tests
+#  1. 20% of getting 100, 80% of getting 1
+#      - maybe search over a few of these
+#  2. Adverserial w constants for incorrect/correct
 def sample_two_gamma_dists(preds, beta_right, beta_wrong):
     ret = []
     for v, i in enumerate(preds):
@@ -209,11 +212,13 @@ def no_weights_vs_weighted(data, weights, p, max_depth=1, n_est=40):
     # print('-----------------')
     # print(X_eval.columns)
     X_eval = cut(X_eval, thresholds_init)
-    print(X_eval.columns)
-    print(X_eval)
+    # print(X_eval.columns)
+    # print(X_eval)
 
     X_hat_init = model_init.predict(X_eval)
     correct_init = y_eval == X_hat_init
+    print('base unweighted loss', 1 - correct_init.sum() / correct_init.size)
+    print('base weighted loss',1 - (correct_init.astype(float) * weights).sum() / weights.sum())
     correct_init_cp = correct_init.copy()
     init_wloss = calc_weighted_loss(correct_init_cp, weights)
     correct_init_cp = correct_init.copy()
@@ -230,8 +235,8 @@ def no_weights_vs_weighted(data, weights, p, max_depth=1, n_est=40):
     model_weighted, X_train_weighted, y_train_weighted, threshold_weighted = preprocess_dataset(duped_dataset, 
                                                                                              n_est, max_depth)
 
-    print('-----------------')
-    print(X_train_weighted.columns)
+    # print('-----------------')
+    # print(X_train_weighted.columns)
     model_weighted.fit(X_train_weighted, y_train_weighted)
     eval_data_copy_2 = data.copy()
     X_eval_2, y_eval_2 = eval_data_copy_2.iloc[:,:-1].values, eval_data_copy_2.iloc[:,-1].values
@@ -253,7 +258,7 @@ def no_weights_vs_weighted(data, weights, p, max_depth=1, n_est=40):
 
     w_total = sum(weights)
 
-    print(f"({init_wloss/w_total}, {init_acc}, {weighted_wloss/w_total}, {weighted_acc})")
+    # print(f"({init_wloss/w_total}, {init_acc}, {weighted_wloss/w_total}, {weighted_acc})")
     return init_wloss/w_total, init_acc, weighted_wloss/w_total, weighted_acc  
 
 
@@ -314,7 +319,12 @@ def sample_weights(dist, N, *kwargs):
         return random.exponential(scale=1/float(kwargs[0]), size=N)
     else:
         raise RuntimeError(f'Distribution of type {dist} cannot be handled')
-
+    
+def constant_weights(N):
+    ret = np.ones(N)
+    ret[:int(0.2*N)] = 100
+    np.random.shuffle(ret)
+    return ret
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -334,7 +344,8 @@ if __name__ == '__main__':
     # data = pd.concat((X_train, y_train), axis=1)
     model = None
     # Sample weights from distribution
-    weights = sample_weights(args.weight_dist, N, *args.weight_args)
+    # weights = sample_weights(args.weight_dist, N, *args.weight_args)
+    weights = constant_weights(N)
     weights = weights / weights.sum() # Normalize weights
     
     # Dup dataset and fit model
@@ -375,10 +386,10 @@ if __name__ == '__main__':
                 file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"Initial"}\n')
                 file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {retrain_loss}, {"Retrained"}\n')
             elif args.sampling_method in four_less_reporting:
-                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"initial_weighted_loss"}\n')
-                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_acc}, {"initial_accuracy"}\n')
-                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_loss}, {"weighted_weighted_loss"}\n')
-                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_acc}, {"weighted_accuracy"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_loss}, {"base_gosdt_weighted_loss"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {init_acc}, {"base_gosdt_accuracy"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_loss}, {"duplication_weighted_loss"}\n')
+                file.write(f'{args.sampling_method}, {args.weight_dist},({"".join(args.weight_args)}), {args.p}, {weighted_acc}, {"duplication_accuracy"}\n')
             else:
                 file.write(f'{args.sampling_method}, {args.weight_dist}({",".join(map(str, args.weight_args))}), {args.p}, {loss}\n')
             file.close()
