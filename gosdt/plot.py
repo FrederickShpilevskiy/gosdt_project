@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 
 N = 10459
 
+# takes strings from " binary(0.25-2.0-1.0)" to "binary(0.25)" if last selected is 0, "binary(2.0)" if selector is 1... 
+def extract_dist_params(row):
+    param_selector = 0
+    dist_string = row["distribution"]
+    dist_type = dist_string.split('(')[0]
+    return dist_type + "(" + dist_string.split('(')[1].split('-')[param_selector] + ")"
+
 def compare_sampling_methods(df):
     sampling_methods = df.sampling_method.unique()
     fig, axs = plt.subplots(1, len(sampling_methods))
@@ -16,6 +23,12 @@ def compare_sampling_methods(df):
         axs[i].set_title(sampling_methods[i])
     plt.tight_layout()
     plt.savefig(f'../sampling_methods.png')
+
+def compare_experiments(df):
+    dists = df["distribution"].unique()
+    df["dist_adjusted"] = df.apply(extract_dist_params, axis=1)
+    sns.barplot(data=df, hue="experiment", x="dist_adjusted", y="loss")
+    plt.savefig(f"../experiment_comparison.png")
 
 def resampling_error(df):
     df["N'"] = df['p']*N
@@ -34,7 +47,7 @@ if __name__ == '__main__':
 
     # Plot (# of sampling methods) subplots
     if args.plot_type == "compare":
-        compare_sampling_methods(df)
+        compare_experiments(df)
     elif args.plot_type == "resample":
         resampling_error(df)
 

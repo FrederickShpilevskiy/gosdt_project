@@ -83,7 +83,7 @@ if __name__ == '__main__':
         for key, value in grid.items():
             config[key] = value[i]
         # write command
-        command_file.write(f'python gosdt/main.py {parse_args(config)}\n')
+        command_file.write(f'python gosdt/cleaned_main.py {parse_args(config)}\n')
 
     # close file
     command_file.close()
