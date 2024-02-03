@@ -1,0 +1,10 @@
+{
+    "grid": {"combine": [{"--path": ["datasets/fico.csv"]},
+                         {"--weight_dist": ["adversarial-class-bias"]},
+                         {"--weight_args": [[0.001], [0.01], [0.1], [0.15], [0.2], [0.25]]},
+                         {"--seed": [1,2,3,13,42,69]},
+                         {"--data_gen": ["sampling", "mathias"]},
+                         {"--experiment": ["gosdt", "scikit"]},
+                         {"--out": ["class_bias.csv"]},
+                         {"-p": [1,2,5]}]}
+  }

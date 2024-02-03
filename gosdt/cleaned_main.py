@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 import argparse
+import random as rand
 
 from WeightGenerator import sample_weights
 from Experiment import run_experiment
 
-WEIGHTING_TYPES = ['exponential', 'binary', 'none']
+WEIGHTING_TYPES = ['exponential', 'binary', 'none', 'adversarial-single-point', 'adversarial-class-bias']
 DATA_GENERATION_TYPES = ['deterministic', 'sampling', 'mathias']
 EXPERIMENT_TYPE = ['gosdt', 'scikit', 'gosdt-fit-without-weights', 'scikit-fit-without-weights']
 
@@ -28,8 +29,12 @@ if __name__ == '__main__':
 
     df = pd.read_csv(args.path)
     np.random.seed(args.seed)
+    rand.seed(args.seed)
 
-    weights = sample_weights(args.weight_dist, df.shape[0], *args.weight_args)
+    selected_label = rand.choice(list(df.iloc[:,-1].unique()))
+    is_selected_label = df[df.iloc[:,-1] == selected_label]
+
+    weights = sample_weights(args.weight_dist, df.shape[0], args.p, is_selected_label.index.values, *args.weight_args)
     weights = weights / weights.sum()
 
     loss = run_experiment(args, df, weights)

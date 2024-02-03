@@ -18,6 +18,9 @@ from sklearn import metrics
 def fit_boosted_tree(X, y, n_est=10, lr=0.1, d=1):
     clf = GradientBoostingClassifier(loss='log_loss', learning_rate=lr, n_estimators=n_est, max_depth=d,
                                     random_state=42)
+
+    # print(X.head)
+    # print(np.unique(y))
     clf.fit(X, y)
     out = clf.score(X, y)
     return clf, out

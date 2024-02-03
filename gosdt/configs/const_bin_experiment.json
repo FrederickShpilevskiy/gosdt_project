@@ -1,0 +1,12 @@
+{
+    "grid": {"combine": [{"--path": ["datasets/fico.csv"]},
+                         {"--weight_dist": ["binary"]},
+                         {"--weight_args": [[0.1, 100, 1], [0.1, 1000, 1],
+                                            [0.01, 100, 1], [0.01, 1000, 1],
+                                            [0.001, 100, 1], [0.001, 1000, 1]]},
+                         {"--seed": [1,2,3,13,42,69]},
+                         {"--data_gen": ["deterministic"]},
+                         {"--experiment": ["gosdt", "scikit", "gosdt-fit-without-weights", "scikit-fit-without-weights"]},
+                         {"--out": ["out.csv"]},
+                         {"-p": [1]}]}
+  }

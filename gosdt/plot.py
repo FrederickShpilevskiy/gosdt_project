@@ -10,7 +10,27 @@ def extract_dist_params(row):
     param_selector = 0
     dist_string = row["distribution"]
     dist_type = dist_string.split('(')[0]
-    return dist_type + "(" + dist_string.split('(')[1].split('-')[param_selector] + ")"
+    extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+    if extracted_str[-1] == ")":
+        extracted_str = extracted_str[:-1]
+    return dist_type + "(" + extracted_str + ")"
+
+def extract_multiple_dist_params(row):
+    dist_string = row["distribution"]
+    dist_type = dist_string.split('(')[0]
+    params = dist_string.split('(')[1].split('-')
+    return f"{dist_type}({params[0]}, {params[1]})"
+
+def extract_dist_params_num_only(row):
+    param_selector = 0
+    dist_string = row["distribution"]
+    dist_type = dist_string.split('(')[0]
+    extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+    if extracted_str[-1] == ")":
+        extracted_str = extracted_str[:-1]
+
+    return extracted_str
+
 
 def compare_sampling_methods(df):
     sampling_methods = df.sampling_method.unique()
@@ -25,10 +45,65 @@ def compare_sampling_methods(df):
     plt.savefig(f'../sampling_methods.png')
 
 def compare_experiments(df):
+    fig, axs = plt.subplots(1, 1)
+    fig.set_size_inches(8,5)
+
+    x = ["1.0", "2.0"]
     dists = df["distribution"].unique()
-    df["dist_adjusted"] = df.apply(extract_dist_params, axis=1)
-    sns.barplot(data=df, hue="experiment", x="dist_adjusted", y="loss")
+    df["experiment"] = df['experiment'].str.strip()
+    # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
+    df["param_target"] = df.apply(extract_dist_params_num_only, axis=1)
+    df["weighing summary"] = df.apply(extract_dist_params, axis=1)
+    # selected_df = df[(df["param_target"] == x) & (df["experiment"] == "gosdt")]
+    # selected_df = df[df["experiment"] == "gosdt"]
+    selected_df = df[df["param_target"].isin(x)]
+    print(df["param_target"].unique())
+
+    ax = sns.barplot(data=selected_df, hue="sampling_method", x="weighing summary", y="loss")
+    ax.set_title(f"Loss for param = {x}")
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.tight_layout()
     plt.savefig(f"../experiment_comparison.png")
+
+def plot_loss_diff(df):
+    fig, axs = plt.subplots(1, 1)
+    fig.set_size_inches(8,5)
+
+    diffs = []
+    x = "0.001"
+    df["weighing_scheme"] = df.apply(extract_multiple_dist_params, axis=1)
+    df["param_target"] = df.apply(extract_dist_params_num_only, axis=1)
+    df["experiment"] = df['experiment'].str.strip()
+    selected_df = df[df["param_target"] == x]
+
+    for scheme in selected_df["weighing_scheme"].unique():
+        print(f"Doing scheme: {scheme}")
+
+        gosdt_row = {}
+        gosdt_row["Weighing Method"] = scheme
+        gosdt_row["Experiment"] = "gosdt"
+        gosdt = selected_df[(selected_df["weighing_scheme"] == scheme)&(selected_df["experiment"] == "gosdt")]["loss"].mean()
+        gosdt_without = selected_df[(selected_df["weighing_scheme"] == scheme)&(selected_df["experiment"] == "gosdt-fit-without-weights")]["loss"].mean()
+        gosdt_row["Difference in Loss"] = gosdt_without - gosdt
+
+        scikit_row = {}
+        scikit_row["Weighing Method"] = scheme
+        scikit_row["Experiment"] = "scikit"
+        scikit = selected_df[(selected_df["weighing_scheme"] == scheme)&(selected_df["experiment"] == "scikit")]["loss"].mean()
+        scikit_without = selected_df[(selected_df["weighing_scheme"] == scheme)&(selected_df["experiment"] == "scikit-fit-without-weights")]["loss"].mean()
+        scikit_row["Difference in Loss"] = scikit_without - scikit
+
+        diffs.append(gosdt_row)
+        diffs.append(scikit_row)
+
+    
+    ax = sns.barplot(data=pd.DataFrame(diffs), hue="Experiment", x="Weighing Method", y="Difference in Loss")
+    ax.set_title(f"Difference in Loss For {x}")
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    plt.savefig(f"../loss_diff.png")
+
+
 
 def resampling_error(df):
     df["N'"] = df['p']*N
@@ -50,6 +125,8 @@ if __name__ == '__main__':
         compare_experiments(df)
     elif args.plot_type == "resample":
         resampling_error(df)
+    elif args.plot_type == "loss_diff":
+        plot_loss_diff(df)
 
 
 
