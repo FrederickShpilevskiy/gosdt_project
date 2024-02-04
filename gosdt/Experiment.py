@@ -10,7 +10,7 @@ from DataSampler import generate_data
 
 
 # hyperparams
-TREE_DEPTH = 5
+TREE_DEPTH = None
 
 # y should be numpy 
 # len(weights) == len(X) == len(y)
@@ -41,6 +41,7 @@ def preprocess_dataset(dataset, n_est=40, max_depth=1):
     pd.DataFrame(warm_labels, columns=["class_labels"]).to_csv(labelpath, header="class_labels",index=None)
 
     # train GOSDT model
+    print(TREE_DEPTH)
     config = {
                 "regularization": 0.001,
                 "depth_budget": TREE_DEPTH,
@@ -109,6 +110,9 @@ def run_scikit_fit_without_weights(args, df, weights):
     return weighted_loss(clf, X_test, y_test, weights)
 
 def run_experiment(args, df, weights):
+    global TREE_DEPTH
+    TREE_DEPTH = args.tree_depth
+
     if args.experiment == "gosdt":
         return run_gosdt(args, df, weights)
     elif args.experiment == "gosdt-fit-without-weights":
