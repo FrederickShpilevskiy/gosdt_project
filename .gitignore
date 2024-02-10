@@ -1,0 +1,6 @@
+*.pyc
+*.png
+*.csv
+runner.sh
+*.zip
+gosdt/example.py
