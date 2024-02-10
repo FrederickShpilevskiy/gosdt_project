@@ -31,16 +31,46 @@ def extract_dist_params_num_only(row):
 
     return extracted_str
 
+def compare_tree_depths(df):
+    fig, axs = plt.subplots(1, 1)
+    fig.set_size_inches(8,5)
+
+    x = ["0.5", "10.0", "100.0", "1000.0"]
+    dists = df["distribution"].unique()
+    df["tree_depth"] = df["tree_depth"].astype(str)
+    df["experiment"] = df['experiment'].str.strip()
+    # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
+    df["param_target"] = df.apply(extract_dist_params_num_only, axis=1)
+    df["weighing summary"] = df.apply(extract_dist_params, axis=1)
+    # selected_df = df[(df["param_target"] == x) & (df["experiment"] == "gosdt")]
+    print(df["param_target"].unique())
+    selected_df = df[df["experiment"] == "gosdt"]
+    selected_df = df[df["param_target"].isin(x)]
+    print(selected_df)
+
+    ax = sns.barplot(data=selected_df, hue="tree_depth", x="weighing summary", y="loss")
+    ax.set_title(f"Fico: Loss for params = {x}")
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    plt.savefig(f"../tree_comparison.png")
 
 def compare_sampling_methods(df):
-    sampling_methods = df.sampling_method.unique()
+    print(df.head())
+    sampling_methods = df["sampling_method"].unique()
+    df["param_target"] = df.apply(extract_dist_params_num_only, axis=1)
+    df["weighing summary"] = df.apply(extract_dist_params, axis=1)
+    df["tree_depth"] = df["tree_depth"].astype(str)
+    print(sampling_methods)
     fig, axs = plt.subplots(1, len(sampling_methods))
     fig.set_size_inches(20, 4)
     for i in range(len(axs)):
-        df_sampling_method = df[df.sampling_method == sampling_methods[i]]
-        sns.barplot(data=df_sampling_method, x='distribution', y='accuracy', hue="p", ax=axs[i])
-        sns.move_legend(axs[i], "upper left", bbox_to_anchor=(1, 1))
+        print(f"Doing: {sampling_methods[i]}")
+        df_sampling_method = df[df["sampling_method"] == sampling_methods[i]]
+        print(df_sampling_method)
+        sns.barplot(data=df_sampling_method, x='weighing summary', y='loss', hue="tree_depth", ax=axs[i])
+        # sns.move_legend(axs[i], "upper left", bbox_to_anchor=(1, 1))
         axs[i].set_title(sampling_methods[i])
+
     plt.tight_layout()
     plt.savefig(f'../sampling_methods.png')
 
@@ -127,6 +157,10 @@ if __name__ == '__main__':
         resampling_error(df)
     elif args.plot_type == "loss_diff":
         plot_loss_diff(df)
+    elif args.plot_type == "tree":
+        compare_tree_depths(df)
+    elif args.plot_type == "sampling":
+        compare_sampling_methods(df)
 
 
 

@@ -1,5 +1,5 @@
 {
-    "grid": {"combine": [{"--path": ["datasets/fico.csv"]},
+    "grid": {"combine": [{"--path": ["datasets/adult.csv"]},
                          {"--weight_dist": ["adversarial-single-point"]},
                          {"--weight_args": [[1, 1.5], [1, 2], [1, 3], [1, 5],
                                             [2, 1.5], [2, 2], [2, 3], [2, 5]]},
@@ -7,5 +7,6 @@
                          {"--data_gen": ["sampling", "mathias"]},
                          {"--experiment": ["gosdt", "gosdt-fit-without-weights"]},
                          {"--out": ["single_point.csv"]},
+                         {"--tree_depth": [5,8,10,15]},
                          {"-p": [1,2,5]}]}
   }

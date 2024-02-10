@@ -1,5 +1,5 @@
 {
-    "grid": {"combine": [{"--path": ["datasets/fico.csv"]},
+    "grid": {"combine": [{"--path": ["datasets/adult.csv"]},
                          {"--weight_dist": ["binary"]},
                          {"--weight_args": [[0.1, 100, 1], [0.1, 1000, 1],
                                             [0.01, 100, 1], [0.01, 1000, 1],
@@ -7,7 +7,7 @@
                          {"--tree_depth": [8, 10, 15]},
                          {"--seed": [1,2,3,13,42,69]},
                          {"--data_gen": ["deterministic", "sampling", "mathias"]},
-                         {"--experiment": ["gosdt", "gosdt-fit-without-weights"]},
+                         {"--experiment": ["gosdt" ]},
                          {"--out": ["tree_depth_binary_experiment.csv"]},
                          {"-p": [1,2,5]}]}
   }

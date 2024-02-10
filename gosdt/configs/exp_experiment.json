@@ -1,0 +1,11 @@
+{
+    "grid": {"combine": [{"--path": ["datasets/fico.csv"]},
+                         {"--weight_dist": ["exponential"]},
+                         {"--weight_args": [[1000],[100], [10], [0.5]]},
+                         {"--tree_depth": [8, 10, 15]},
+                         {"--seed": [1,2,3,13,42,69]},
+                         {"--data_gen": ["deterministic", "sampling", "mathias"]},
+                         {"--out": ["exp_dist_experiment.csv"]},
+                         {"-p": [1,5,10]},
+                         {"--experiment": ["gosdt" ]}]}
+  }
