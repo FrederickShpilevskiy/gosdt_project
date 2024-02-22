@@ -17,7 +17,7 @@ def generate_data(args, df, weights):
     data = df.copy()
     data_allowance = data.shape[0] * args.p
 
-    sampling_method = args.data_gen
+    sampling_method = args.data_dup
     if sampling_method == 'deterministic':
         dups = np.round(weights * data_allowance)
         duped_dataset = data.loc[data.index.repeat(dups)]

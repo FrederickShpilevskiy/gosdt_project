@@ -40,5 +40,10 @@ def sample_weights(dist, N, p, is_selected, *kwargs):
         return adversarial_single_point(N, p, kwargs[0], kwargs[1])
     if dist == "adversarial-class-bias":
         return adversarial_class_bias(N, is_selected, kwargs[0])
+    if dist == 'bias_one_class':
+        weights = np.ones(N)
+        weights[is_selected] = kwargs[0]
+        weights[~is_selected] = kwargs[1]
+        return weights
     else:
         raise RuntimeError(f'Distribution of type {dist} cannot be handled')

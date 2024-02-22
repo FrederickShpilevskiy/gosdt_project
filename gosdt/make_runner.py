@@ -54,6 +54,8 @@ def parse_args(config):
     for key, value in config.items():
         if key == '--weight_args':
             command += f'{key} {" ".join(map(str, value))} '
+        elif key == '--data_gen_args':
+            command += f'{key} {" ".join(map(str, value))} ' 
         elif value != 'N/a':
             command += f'{key} {value} '
     return command
