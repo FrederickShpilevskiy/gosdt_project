@@ -8,6 +8,7 @@ from model.threshold_guess import compute_thresholds, cut
 from gosdt.model.gosdt import GOSDT
 from DataSampler import generate_data
 
+import sys
 
 # hyperparams
 TREE_DEPTH = None
@@ -59,6 +60,14 @@ def apply_thresholds(dataset, thresholds, header):
     X_new = cut(X, thresholds)
     return X_new[list(header)], pd.DataFrame(y)
 
+def trace_calls(frame, event, arg):
+    if event != 'call':
+        return
+    code = frame.f_code
+    func_name = code.co_name
+    func_line_no = frame.f_lineno
+    func_filename = code.co_filename
+    print(f'Call to {func_name} on line {func_line_no} of {func_filename}')
 
 def run_gosdt(args, df, weights):
     sampled_df = generate_data(args, df, weights)
@@ -68,8 +77,11 @@ def run_gosdt(args, df, weights):
         print(df.shape)
         print(X.shape)
 
+    print("about to fit")
+    # sys.settrace(trace_calls)
     model.fit(X, y)
-
+    print("done fit")
+    
      # not real "test" set, we are just interested in performance on all data
      # need to change the data to have the right features for classifying
     X_test, y_test = apply_thresholds(df, thresholds, header)

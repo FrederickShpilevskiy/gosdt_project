@@ -21,8 +21,18 @@ def extract_multiple_dist_params(row):
     params = dist_string.split('(')[1].split('-')
     return f"{dist_type}({params[0]}, {params[1]})"
 
-def extract_dist_params_num_only(row):
+def extract_dist_params_first_num_only(row):
     param_selector = 0
+    dist_string = row["distribution"]
+    dist_type = dist_string.split('(')[0]
+    extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+    if extracted_str[-1] == ")":
+        extracted_str = extracted_str[:-1]
+
+    return extracted_str
+
+def extract_dist_params_second_num_only(row):
+    param_selector = 1
     dist_string = row["distribution"]
     dist_type = dist_string.split('(')[0]
     extracted_str = dist_string.split('(')[1].split('-')[param_selector]
@@ -78,19 +88,19 @@ def compare_experiments(df):
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8,5)
 
-    x = ["1.0", "2.0"]
+    x = ["100"]
     dists = df["distribution"].unique()
     df["experiment"] = df['experiment'].str.strip()
     # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
-    df["param_target"] = df.apply(extract_dist_params_num_only, axis=1)
+    df["proportion_with_weight"] = df.apply(extract_dist_params_first_num_only, axis=1)
+    df["applied weight"] = df.apply(extract_dist_params_second_num_only, axis=1)
     df["weighing summary"] = df.apply(extract_dist_params, axis=1)
     # selected_df = df[(df["param_target"] == x) & (df["experiment"] == "gosdt")]
     # selected_df = df[df["experiment"] == "gosdt"]
-    selected_df = df[df["param_target"].isin(x)]
-    print(df["param_target"].unique())
+    selected_df = df[df["applied weight"].isin(x)]
 
-    ax = sns.barplot(data=selected_df, hue="sampling_method", x="weighing summary", y="loss")
-    ax.set_title(f"Loss for param = {x}")
+    ax = sns.barplot(data=df, hue="proportion_with_weight", x="experiment", y="loss")
+    ax.set_title(f"Loss for {'xor dataset'} weight param = {x}")
     sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
     plt.tight_layout()
     plt.savefig(f"../experiment_comparison.png")

@@ -14,7 +14,7 @@ def lin_seperable(d_sep: int, d_overlap: int, n: int, num_classes: int):
 
     overlap_ranges = []
     for _ in range(d_overlap):
-        overlap_ranges.append((randint(-10,-3), randint(3, 10)))
+        overlap_ranges.append((randint(-5,-3), randint(3, 5)))
 
     assert(n >= num_classes)
 
@@ -48,9 +48,7 @@ def lin_seperable(d_sep: int, d_overlap: int, n: int, num_classes: int):
 
 def xor(d: int, n: int):
     assert(d > 1)
-
     data = []
-
     num_per_class = n // 2
 
     # Equal portion of each feature being <= 0
@@ -58,10 +56,8 @@ def xor(d: int, n: int):
 
     # avoids rounding errors when n//2 and d have weird gcd 
     num_per_class = num_per_d * d
-
     for i in range(num_per_class):
         row = {}
-    
         curr_d_to_false = i // num_per_d
 
         for feat in range(d):
