@@ -4,3 +4,5 @@
 runner.sh
 *.zip
 gosdt/example.py
+gosdt/model/__pycache__/
+*.sh
