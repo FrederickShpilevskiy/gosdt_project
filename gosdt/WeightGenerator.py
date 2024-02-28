@@ -3,10 +3,17 @@ import pandas as pd
 import random as rand
 
 
+# Special case of single point where mass of one point causes deterministic duplication to fail
 def adversarial_single_point(N, p, a, k):
     weights = np.ones(N)
     point = rand.randrange(N)
     weights[point] = k*(2*N*p - a*N + a)
+    return weights
+
+def bias_single_point(N, mass):
+    weights = np.ones(N)
+    point = rand.randrange(N)
+    weights[point] = mass
     return weights
 
 # percent_keep = % of samples from other class label to retain after weighted duplication
@@ -45,5 +52,7 @@ def sample_weights(dist, N, p, is_selected, *kwargs):
         weights[is_selected] = kwargs[0]
         weights[~is_selected] = kwargs[1]
         return weights
+    if dist == "bias_single_point":
+        return bias_single_point(N, kwargs[0])
     else:
         raise RuntimeError(f'Distribution of type {dist} cannot be handled')

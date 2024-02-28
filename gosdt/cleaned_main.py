@@ -8,7 +8,7 @@ from Experiment import run_experiment
 from DataGenerator import generate_data
 
 WEIGHTING_TYPES = ['exponential', 'binary', 'none', 'adversarial-single-point', 'adversarial-class-bias',\
-                   'bias_one_class']
+                   'bias_one_class', 'bias_single_point']
 DATA_DUPLICATION_TYPES = ['deterministic', 'sampling', 'mathias']
 DATA_GENERATION_TYPES = ["xor", "lin_sep"]
 EXPERIMENT_TYPE = ['gosdt', 'scikit', 'gosdt-fit-without-weights', 'scikit-fit-without-weights']
@@ -18,7 +18,7 @@ def collect_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, help='path to data as csv')
     parser.add_argument('--data_gen_type', type=str, choices=DATA_GENERATION_TYPES, help="Type of data generation")
-    parser.add_argument('--data_gen_args', nargs='*', type=int)
+    parser.add_argument('--data_gen_args', nargs='*', type=float)
     parser.add_argument('--seed', type=int, default=42, help='Seed for experiment')
     parser.add_argument('--weight_dist', type=str, choices=WEIGHTING_TYPES, help='Weighting distribution')
     parser.add_argument('--weight_args', nargs='*', type=float)

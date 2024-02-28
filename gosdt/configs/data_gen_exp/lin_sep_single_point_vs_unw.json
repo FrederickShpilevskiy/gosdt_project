@@ -5,11 +5,11 @@
                                               [10, 3000, 2, 0.1], [10, 5000, 2, 0.25], [10, 7500, 2, 0.33],
                                               [15, 3000, 2, 0.1], [15, 5000, 2, 0.25], [15, 7500, 2, 0.33]
                                               ]},
-                         {"--weight_dist": ["bias_one_class"]},
-                         {"--weight_args": [[1, 2], [1, 4], [1, 6], [1,10], [1,15], [2,15]]},
+                         {"--weight_dist": ["bias_single_point"]},
+                         {"--weight_args": [[2],[5],[8],[10],[13],[20], [25]]},
                          {"--seed": [1,2,3,13,42,69]},
                          {"--data_dup": ["deterministic"]},
                          {"--experiment": ["gosdt", "gosdt-fit-without-weights"]},
-                         {"--out": ["lin_sep_class_bias_wbs_WvsUW.csv"]},
+                         {"--out": ["lin_sep_single_point_wbs_WvsUW.csv"]},
                          {"-p": [1,2,5]}]}
   }

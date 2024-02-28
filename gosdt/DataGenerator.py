@@ -1,10 +1,19 @@
 import numpy as np
 import pandas as pd
 
-from random import randint, shuffle
+from random import randint, shuffle, choice
 
 
-def lin_seperable(d_sep: int, d_overlap: int, n: int, num_classes: int):
+# start with 2 classes
+# Idea, kth feature's domain depends on the k-1th feature's domain. Alternate so no lin sep
+# Eg. feat 1 <= 0 so feat 2 > 0 so feat 3 <= 0
+# def dep_prev_feat(d:int, n:int):
+
+
+# Used to have seperable and overlapping features (commented out code) now just
+# seperable data but we intentionally make mistakes for some % of data
+
+def lin_seperable_with_mistakes(d_sep: int, n: int, num_classes: int, p_mistake:float):
     sep_feat_ranges = []
     for _ in range(d_sep):
         start = randint(-10, 0) # starting vals
@@ -12,29 +21,43 @@ def lin_seperable(d_sep: int, d_overlap: int, n: int, num_classes: int):
         end = randint(start+num_classes, start + width*num_classes)
         sep_feat_ranges.append((start, width, end))
 
-    overlap_ranges = []
-    for _ in range(d_overlap):
-        overlap_ranges.append((randint(-5,-3), randint(3, 5)))
+    # overlap_ranges = []
+    # for _ in range(d_overlap):
+    #     overlap_ranges.append((randint(-5,-3), randint(3, 5)))
 
     assert(n >= num_classes)
 
     data = []
-    for _ in range(n):
-        # randomly choose label
-        label = randint(0,num_classes-1)
+    n_mistake = int(n*p_mistake)
+    n_correct = n - n_mistake
 
-        row = {}
-        for feat in range(d_sep):
-            start, width, end = sep_feat_ranges[feat]
-            val = randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
-            row[f"sep_{feat}"] = val
+    for label in range(num_classes):
+        for _ in range(n_correct//num_classes):
+            row = {}
+            for feat in range(d_sep):
+                start, width, end = sep_feat_ranges[feat]
+                val = randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
+                row[f"sep_{feat}"] = val
 
-        for feat in range(d_overlap):
-            start, end = overlap_ranges[feat]
-            row[f"overlap_{feat}"] = randint(start, end)
+                # for feat in range(d_overlap):
+                #     start, end = overlap_ranges[feat]
+                #     row[f"overlap_{feat}"] = randint(start, end)
 
-        row["target"] = label
-        data.append(row)
+            row["target"] = label
+            data.append(row)
+
+        for _ in range(n_mistake//num_classes):
+            row = {}
+            for feat in range(d_sep):
+                start, width, end = sep_feat_ranges[feat]
+                val = randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
+                row[f"sep_{feat}"] = val
+
+            # Mistake = any label but the right one
+            non_target_labels = list(set(range(num_classes)) - set([label]))
+            row["target"] = choice(non_target_labels)
+            data.append(row)
+
 
     shuffle(data)
     return pd.DataFrame(data)
@@ -97,8 +120,8 @@ def xor(d: int, n: int):
 
 def generate_data(gen_method, *kwargs):
     if gen_method == "xor":
-        return xor(kwargs[0], kwargs[1])
+        return xor(int(kwargs[0]), int(kwargs[1]))
     elif gen_method == "lin_sep":
-        return lin_seperable(kwargs[0],kwargs[1],kwargs[2],kwargs[3])
+        return lin_seperable_with_mistakes(int(kwargs[0]), int(kwargs[1]), int(kwargs[2]), kwargs[3])
     else:
         print("Data Gen Method does not exist")

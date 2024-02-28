@@ -71,6 +71,28 @@ def extract_data_gen_params_second_num_only(row):
 
     return extracted_str
 
+def extract_data_gen_params_third_num_only(row):
+    param_selector = 2
+    dist_string = row["data_gen"]
+    dist_type = dist_string.split('(')[0]
+    extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+    if extracted_str[-1] == ")":
+        extracted_str = extracted_str[:-1]
+
+    return extracted_str
+
+def extract_data_gen_params_i(i):
+    def extract_fn(row):
+        param_selector = i
+        dist_string = row["data_gen"]
+        extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+        if extracted_str[-1] == ")":
+            extracted_str = extracted_str[:-1]
+
+        return extracted_str
+
+    return extract_fn
+
 def compare_tree_depths(df):
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8,5)
@@ -121,8 +143,9 @@ def compare_experiments(df, out_path):
     # 2, 5, 8, 10, 13, 20
     # decent: 
     # better with unweighted: 
-    dist_args = ["5.0"]
-    data_gen_args = ["5000.0"]
+    dist_args = ["20.0"]
+    data_gen_args = ["0.33"]
+
     dists = df["distribution"].unique()
     df["experiment"] = df['experiment'].str.strip()
     # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
@@ -130,12 +153,16 @@ def compare_experiments(df, out_path):
     # df["weight_arg_2"] = df.apply(extract_dist_params_second_num_only, axis=1)
     df["data_summary"] = df.apply(extract_data_summary, axis=1)
     df["data_arg_2"] = df.apply(extract_data_gen_params_second_num_only, axis=1)
+    # df["data_arg_3"] = df.apply(extract_data_gen_params_third_num_only, axis=1)
+    # df["data_arg_4"] = df.apply(extract_data_gen_params_i(3), axis=1)
     # selected_df = df[(df["param_target"] == x) & (df["experiment"] == "gosdt")]
     # selected_df = df[df["experiment"] == "gosdt"]
-    selected_df = df[df["weight_arg_1"].isin(dist_args) & df["data_arg_2"].isin(data_gen_args)]
+    selected_df = df[df["weight_arg_1"].isin(dist_args)]
+                    #  & df["data_arg_4"].isin(data_gen_args)]
 
     ax = sns.barplot(data=selected_df, hue="experiment", x="data_summary", y="loss")
-    ax.set_title(f"Loss for lin sep (n={data_gen_args[0]}) point bias weight = {dist_args}")
+    # ax.set_title(f"Loss for lin sep (mistake p={data_gen_args[0]}) point bias weight = {dist_args}")
+    ax.set_title(f"Loss for xor point bias weight = {dist_args}")
     sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
     plt.tight_layout()
     plt.savefig(out_path)
