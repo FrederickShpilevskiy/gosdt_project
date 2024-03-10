@@ -66,6 +66,7 @@ def run_gosdt(args, df, weights):
         print(df.shape)
         print(X.shape)
 
+    print(X.head())
     model.fit(X, y)
     
      # not real "test" set, we are just interested in performance on all data
@@ -94,7 +95,8 @@ def run_gosdt_fit_without_weights(args, df, weights):
      # not real "test" set, we are just interested in performance on all data
      # need to change the data to have the right features for classifying
     X_test, y_test = apply_thresholds(df, thresholds, header)
-    return weighted_loss(model, X_test, y_test.to_numpy(), weights)
+    wrong = model.predict(X_test) != y_test.to_numpy().reshape(-1)
+    return weighted_loss(model, X_test, y_test.to_numpy(), weights), wrong
 
 
 def run_scikit_fit_without_weights(args, df, weights):
@@ -105,17 +107,75 @@ def run_scikit_fit_without_weights(args, df, weights):
     # not real "test" set, we are just interested in performance on all data
     X_test = df.iloc[:,:-1].values
     y_test = df.iloc[:,-1].values
-    return weighted_loss(clf, X_test, y_test, weights)
+    wrong = clf.predict(X_test) != y_test.reshape(-1)
+    return weighted_loss(clf, X_test, y_test, weights), wrong
+
+def save_results(args, loss_arg, override_experiment=None):
+    if args.file is not None:
+        data_source = args.file
+    else:
+        data_source = f"{args.data_gen_type}({'-'.join(map(str, args.data_gen_args))})"
+
+    if args.out is not None:
+        import os.path
+        add_header = not os.path.exists(args.out)
+        with open(args.out, 'a+') as file:
+            if add_header:
+                file.write('seed,sampling_method,data_gen,distribution,p,experiment,tree_depth,loss\n')
+            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {args.weight_dist}({"-".join(map(str, args.weight_args))}), {args.p}, {args.experiment if override_experiment is None else override_experiment}, {args.tree_depth}, {loss_arg}\n')
 
 def run_experiment(args, df, weights):
     global TREE_DEPTH
     TREE_DEPTH = args.tree_depth
 
-    if args.experiment == "gosdt":
-        return run_gosdt(args, df, weights)
-    elif args.experiment == "gosdt-fit-without-weights":
-        return run_gosdt_fit_without_weights(args, df, weights)
-    elif args.experiment == "scikit":
-        return run_scikit(args, df, weights)
-    elif args.experiment == "scikit-fit-without-weights":
-        return run_scikit_fit_without_weights(args, df, weights)
+    # Set up the print stuff and 
+
+    experiment = args.experiment
+    if experiment == "gosdt":
+        loss = run_gosdt(args, df, weights)
+        save_results(loss)
+    elif experiment == "gosdt-fit-without-weights":
+        loss, _ = run_gosdt_fit_without_weights(args, df, weights)
+        save_results(loss)
+    elif experiment == "scikit":
+        loss = run_scikit(args, df, weights)
+        save_results(loss)
+    elif experiment == "scikit-fit-without-weights":
+        loss = run_scikit_fit_without_weights(args, df, weights)
+        save_results(loss)
+    elif experiment == 'gosdt-bias-to-errors':
+       # weights don't matter, create weights based on errors in unweighted tree
+       init_loss, wrong = run_gosdt_fit_without_weights(args, df, weights)
+
+       N = df.shape[0]
+       bias_value = args.exp_params[0]
+       bias_weights = np.ones(N)
+       bias_weights[wrong] = bias_value
+       bias_weights = bias_weights / np.sum(bias_weights)
+
+       print("start")
+       unweighted_tree_loss, _ = run_gosdt_fit_without_weights(args, df, bias_weights)
+       print("after refit unweighted")
+       weighted_tree_loss = run_gosdt(args, df, bias_weights)
+       print("after weighted")
+       save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
+       save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
+
+       if args.logs:
+        print(f"init: {init_loss}\t after:{unweighted_tree_loss}\t weighted:{weighted_tree_loss}")
+
+    elif experiment == 'scikit-bias-to-errors':
+        # weights don't matter, create weights based on errors in unweighted tree 
+        _, wrong = run_scikit_fit_without_weights(args, df, weights)
+        
+        N = df.shape[0]
+        bias_value = args.exp_params[0]
+        bias_weights = np.ones(N)
+        bias_weights[wrong] = bias_value
+        bias_weights = bias_weights / np.sum(bias_weights)
+
+        unweighted_tree_loss, _ = run_scikit_fit_without_weights(args, df, bias_weights)
+        weighted_tree_loss = run_scikit(args, df, bias_weights)
+        save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
+        save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
+

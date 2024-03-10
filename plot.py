@@ -140,29 +140,34 @@ def compare_experiments(df, out_path):
     fig, axs = plt.subplots(1, 1)
     fig.set_size_inches(8,5)
 
-    # 2, 5, 8, 10, 13, 20
+    # 
     # decent: 
     # better with unweighted: 
     dist_args = ["20.0"]
-    data_gen_args = ["0.33"]
+    data_gen_args = ["5000.0"]
+    N = "10000.0"
+    error_percent = "0.3"
 
     dists = df["distribution"].unique()
     df["experiment"] = df['experiment'].str.strip()
+    df["data_gen"] = df["data_gen"].str.strip()
     # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
     df["weight_arg_1"] = df.apply(extract_dist_params_first_num_only, axis=1)
     # df["weight_arg_2"] = df.apply(extract_dist_params_second_num_only, axis=1)
     df["data_summary"] = df.apply(extract_data_summary, axis=1)
-    df["data_arg_2"] = df.apply(extract_data_gen_params_second_num_only, axis=1)
-    # df["data_arg_3"] = df.apply(extract_data_gen_params_third_num_only, axis=1)
+    df["data_arg_1"] = df.apply(extract_data_gen_params_i(0), axis=1)
+    df["data_arg_2"] = df.apply(extract_data_gen_params_i(1), axis=1)
     # df["data_arg_4"] = df.apply(extract_data_gen_params_i(3), axis=1)
     # selected_df = df[(df["param_target"] == x) & (df["experiment"] == "gosdt")]
     # selected_df = df[df["experiment"] == "gosdt"]
-    selected_df = df[df["weight_arg_1"].isin(dist_args)]
+    # selected_df = df[df["weight_arg_1"].isin(dist_args)]
                     #  & df["data_arg_4"].isin(data_gen_args)]
+    selected_df = df[(df["data_arg_2"] == N)]
+    print(selected_df.head()["data_summary"])
 
     ax = sns.barplot(data=selected_df, hue="experiment", x="data_summary", y="loss")
     # ax.set_title(f"Loss for lin sep (mistake p={data_gen_args[0]}) point bias weight = {dist_args}")
-    ax.set_title(f"Loss for xor point bias weight = {dist_args}")
+    ax.set_title(f"Loss for Xor (N={N})")
     sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
     plt.tight_layout()
     plt.savefig(out_path)
