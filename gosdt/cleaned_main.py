@@ -10,7 +10,7 @@ from DataGenerator import generate_data
 WEIGHTING_TYPES = ['exponential', 'binary', 'none', 'adversarial-single-point', 'adversarial-class-bias',\
                    'bias_one_class', 'bias_single_point']
 DATA_DUPLICATION_TYPES = ['deterministic', 'sampling', 'mathias']
-DATA_GENERATION_TYPES = ["xor", "lin_sep"]
+DATA_GENERATION_TYPES = ["xor", "lin_sep", "circular"]
 EXPERIMENT_TYPE = ['gosdt', 'scikit', 'gosdt-fit-without-weights', 'scikit-fit-without-weights',\
                    'gosdt-bias-to-errors', 'scikit-bias-to-errors']
 

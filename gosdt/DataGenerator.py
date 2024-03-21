@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import sklearn.datasets as datasets
 
 from random import randint, shuffle, choice
 
@@ -17,8 +18,9 @@ def lin_seperable_with_mistakes(d_sep: int, n: int, num_classes: int, p_mistake:
     sep_feat_ranges = []
     for _ in range(d_sep):
         start = randint(-10, 0) # starting vals
-        width = randint(1,5) # range of values for each class
-        end = randint(start+num_classes, start + width*num_classes)
+        width = randint(3,5) # range of values for each class
+        # end = randint(start+(num_classes-1)*width, start + width*num_classes)
+        end = start + num_classes*width
         sep_feat_ranges.append((start, width, end))
 
     # overlap_ranges = []
@@ -117,11 +119,46 @@ def xor(d: int, n: int):
     shuffle(data)
     return pd.DataFrame(data)
 
+# Idea: make 3 circles, middle one with less weight and the outter + inner with equal larger weight
+def circular(N):
+    # Parameters for the three circles
+    n_samples = N // 3
+    circle1_radius = 1
+    circle2_radius = 2
+    circle3_radius = 3
+
+    # Generate points for each circle
+    theta1 = np.random.rand(n_samples) * 2 * np.pi
+    circle1_x = circle1_radius * np.cos(theta1)
+    circle1_y = circle1_radius * np.sin(theta1)
+    y_1 = np.ones(n_samples).reshape(-1, 1)
+
+    theta2 = np.random.rand(n_samples) * 2 * np.pi
+    circle2_x = circle2_radius * np.cos(theta2)
+    circle2_y = circle2_radius * np.sin(theta2)
+    y_2 = np.zeros(n_samples).reshape(-1, 1)
+
+    theta3 = np.random.rand(n_samples) * 2 * np.pi
+    circle3_x = circle3_radius * np.cos(theta3)
+    circle3_y = circle3_radius * np.sin(theta3)
+    y_3 = np.ones(n_samples).reshape(-1 ,1)
+
+    # Combine points from all circles
+    X = np.vstack([np.vstack([circle1_x, circle1_y]).T,
+                   np.vstack([circle2_x, circle2_y]).T,
+                   np.vstack([circle3_x, circle3_y]).T])
+
+    # Create labels for the circles
+    y = np.vstack([y_1, y_2, y_3])
+
+    return X, y
 
 def generate_data(gen_method, *kwargs):
     if gen_method == "xor":
         return xor(int(kwargs[0]), int(kwargs[1]))
     elif gen_method == "lin_sep":
         return lin_seperable_with_mistakes(int(kwargs[0]), int(kwargs[1]), int(kwargs[2]), kwargs[3])
+    elif gen_method == "circular":
+        return circular(int(kwargs[0]))
     else:
         print("Data Gen Method does not exist")

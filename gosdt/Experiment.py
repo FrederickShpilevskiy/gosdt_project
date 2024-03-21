@@ -66,9 +66,13 @@ def run_gosdt(args, df, weights):
         print(df.shape)
         print(X.shape)
 
-    print(X.head())
+    # faulthandler.enable()
+
+    if args.logs:
+        print("right before gosdt fit")
     model.fit(X, y)
-    
+    if args.logs:
+        print("right after gosdt fit")
      # not real "test" set, we are just interested in performance on all data
      # need to change the data to have the right features for classifying
     X_test, y_test = apply_thresholds(df, thresholds, header)
@@ -121,8 +125,8 @@ def save_results(args, loss_arg, override_experiment=None):
         add_header = not os.path.exists(args.out)
         with open(args.out, 'a+') as file:
             if add_header:
-                file.write('seed,sampling_method,data_gen,distribution,p,experiment,tree_depth,loss\n')
-            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {args.weight_dist}({"-".join(map(str, args.weight_args))}), {args.p}, {args.experiment if override_experiment is None else override_experiment}, {args.tree_depth}, {loss_arg}\n')
+                file.write('seed,sampling_method,data_gen,distribution,p,experiment,exp_params,tree_depth,loss\n')
+            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {args.weight_dist}({"-".join(map(str, args.weight_args))}), {args.p}, {args.experiment if override_experiment is None else override_experiment}, {args.exp_params}, {args.tree_depth}, {loss_arg}\n')
 
 def run_experiment(args, df, weights):
     global TREE_DEPTH
@@ -145,6 +149,8 @@ def run_experiment(args, df, weights):
         save_results(loss)
     elif experiment == 'gosdt-bias-to-errors':
        # weights don't matter, create weights based on errors in unweighted tree
+       if args.logs:
+           print("Performing fit without weights")
        init_loss, wrong = run_gosdt_fit_without_weights(args, df, weights)
 
        N = df.shape[0]
@@ -152,12 +158,13 @@ def run_experiment(args, df, weights):
        bias_weights = np.ones(N)
        bias_weights[wrong] = bias_value
        bias_weights = bias_weights / np.sum(bias_weights)
+       if args.logs:
+           print("Made weights")
 
-       print("start")
        unweighted_tree_loss, _ = run_gosdt_fit_without_weights(args, df, bias_weights)
-       print("after refit unweighted")
        weighted_tree_loss = run_gosdt(args, df, bias_weights)
-       print("after weighted")
+       if args.logs:
+           print("done weighted tree")
        save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
        save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
 

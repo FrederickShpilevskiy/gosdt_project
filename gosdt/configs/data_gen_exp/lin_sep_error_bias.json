@@ -16,7 +16,7 @@
                          {"--weight_dist": ["none"]},
                          {"--seed": [1,2,3,13,42]},
                          {"--data_dup": ["deterministic"]},
-                         {"--experiment": ["scikit-bias-to-errors"]},
+                         {"--experiment": ["gosdt-bias-to-errors"]},
                          {"--exp_params": [3, 4, 5, 8, 10, 12]},
                          {"--out": ["lin_sep_error_bias.csv"]},
                          {"-p": [2,3,5]}]}
