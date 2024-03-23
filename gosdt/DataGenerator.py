@@ -120,6 +120,8 @@ def xor(d: int, n: int):
     return pd.DataFrame(data)
 
 # Idea: make 3 circles, middle one with less weight and the outter + inner with equal larger weight
+# Label inner and outer as 1, middle as 0
+# TODO: consider adding more points to middle
 def circular(N):
     # Parameters for the three circles
     n_samples = N // 3
@@ -151,7 +153,7 @@ def circular(N):
     # Create labels for the circles
     y = np.vstack([y_1, y_2, y_3])
 
-    return X, y
+    return pd.DataFrame(np.concatenate((X, y), axis=1))
 
 def generate_data(gen_method, *kwargs):
     if gen_method == "xor":

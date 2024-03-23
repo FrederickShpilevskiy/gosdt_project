@@ -75,6 +75,48 @@ def scikit_experiment(args, df, weights, should_dup=False):
     wrong = clf.predict(X_test) != y_test.reshape(-1)
     return weighted_loss(clf, X_test, y_test, weights), wrong
 
+def gosdt_bias_experiment(args, df, weights):
+    # weights don't matter, create weights based on errors in unweighted tree
+    if args.logs:
+        print("Performing fit without weights")
+
+    init_loss, wrong = gosdt_experiment(args, df, weights)
+    N = df.shape[0]
+
+    if args.logs:
+        print(f"Got {np.sum(wrong)} wrong with {N} points")
+
+    bias_value = args.exp_params[0]
+    bias_weights = np.ones(N)
+    bias_weights[wrong] = bias_value
+    bias_weights = bias_weights / np.sum(bias_weights)
+    if args.logs:
+        print("Made weights")
+        print(bias_weights[:10])
+
+    weighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights, should_dup=True)
+    unweighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights)
+    if args.logs:
+        print("done weighted tree")
+    save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
+    save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
+
+def scikit_bias_experiment(args, df, weights):
+    # weights don't matter, create weights based on errors in unweighted tree 
+    _, wrong = scikit_experiment(args, df, weights)
+    
+    N = df.shape[0]
+    bias_value = args.exp_params[0]
+    bias_weights = np.ones(N)
+    bias_weights[wrong] = bias_value
+    bias_weights = bias_weights / np.sum(bias_weights)
+
+    weighted_tree_loss, _ = scikit_experiment(args, df, bias_weights, should_dup=True)
+    unweighted_tree_loss, _ = scikit_experiment(args, df, bias_weights)
+    save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
+    save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
+
+
 def save_results(args, loss_arg, override_experiment=None):
     if args.file is not None:
         data_source = args.file
@@ -96,12 +138,10 @@ def run_experiment(args, df, weights):
     global DEPTH_BUDGET
     DEPTH_BUDGET = args.tree_depth
 
-    # Set up the print stuff and 
-
     experiment = args.experiment
     if experiment == "gosdt":
         loss, _ = gosdt_experiment(args, df, weights, should_dup=True)
-        save_results(loss)
+        save_results(args, loss)
     elif experiment == "gosdt-fit-without-weights":
         loss, _ = gosdt_experiment(args, df, weights)
         save_results(args, loss)
@@ -112,46 +152,8 @@ def run_experiment(args, df, weights):
         loss, _ = scikit_experiment(args, df, weights)
         save_results(args, loss)
     elif experiment == 'gosdt-bias-to-errors':
-       # weights don't matter, create weights based on errors in unweighted tree
-       if args.logs:
-           print("Performing fit without weights")
-
-       init_loss, wrong = gosdt_experiment(args, df, weights)
-       N = df.shape[0]
-
-       if args.logs:
-           print(f"Got {np.sum(wrong)} wrong with {N} points")
-
-       bias_value = args.exp_params[0]
-       bias_weights = np.ones(N)
-       bias_weights[wrong] = bias_value
-       bias_weights = bias_weights / np.sum(bias_weights)
-       if args.logs:
-           print("Made weights")
-           print(bias_weights[:10])
-
-       weighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights, should_dup=True)
-       unweighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights)
-       if args.logs:
-           print("done weighted tree")
-       save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
-       save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
-
-       if args.logs:
-        print(f"init: {init_loss}\t after:{unweighted_tree_loss}\t weighted:{weighted_tree_loss}")
-
+        gosdt_bias_experiment(args, df, weights)
     elif experiment == 'scikit-bias-to-errors':
-        # weights don't matter, create weights based on errors in unweighted tree 
-        _, wrong = scikit_experiment(args, df, weights)
-        
-        N = df.shape[0]
-        bias_value = args.exp_params[0]
-        bias_weights = np.ones(N)
-        bias_weights[wrong] = bias_value
-        bias_weights = bias_weights / np.sum(bias_weights)
+        scikit_bias_experiment(args, df, weights)
 
-        weighted_tree_loss, _ = scikit_experiment(args, df, bias_weights, should_dup=True)
-        unweighted_tree_loss, _ = scikit_experiment(args, df, bias_weights)
-        save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
-        save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
 

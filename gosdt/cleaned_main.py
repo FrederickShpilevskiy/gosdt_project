@@ -53,7 +53,8 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     rand.seed(args.seed)
 
-    selected_label = rand.choice(list(df.iloc[:,-1].unique()))
+    # selected_label = rand.choice(list(df.iloc[:,-1].unique()))
+    selected_label = 1 # to make the circular simpler
     is_selected_label = df[df.iloc[:,-1] == selected_label]
 
     weights = sample_weights(args.weight_dist, df.shape[0], args.p, is_selected_label.index.values, *args.weight_args)

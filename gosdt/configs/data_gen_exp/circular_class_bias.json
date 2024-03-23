@@ -1,0 +1,12 @@
+{
+    "grid": {"combine": [{"--data_gen_type": ["circular"]},
+                         {"--data_gen_args": [[300], [600], [900], [1500], [3000], [6000], [9000]]},
+                         {"--weight_dist": ["bias_one_class"]},
+                         {"--weight_args": [[2, 1], [3, 1], [4, 1], [5, 1], [8, 1], [10, 1], [12, 1]]},
+                         {"--seed": [1,2,3,13,42,69]},
+                         {"--data_dup": ["mathias", "sampling"]},
+                         {"--experiment": ["gosdt-bias-to-errors", "gosdt"]},
+                         {"--exp_params": [3, 4, 5, 8, 10, 12]},
+                         {"--out": ["circular_experiment.csv"]},
+                         {"-p": [2,3,5]}]}
+  }
