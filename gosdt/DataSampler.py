@@ -14,6 +14,7 @@ def mathiasSampling(data, weights, data_allowance):
     return duped_dataset
 
 def generate_data(args, df, weights):
+    np.random.seed(args.seed)
     data = df.copy()
     data_allowance = data.shape[0] * args.p
 

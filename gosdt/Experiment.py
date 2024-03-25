@@ -4,8 +4,6 @@ import pathlib
 
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.tree import DecisionTreeClassifier
-# from model.threshold_guess import compute_thresholds, cut
-# from gosdt.model.gosdt import GOSDT
 from gosdt import ThresholdGuessBinarizer, GOSDTClassifier
 from DataSampler import generate_data
 
@@ -84,7 +82,7 @@ def gosdt_bias_experiment(args, df, weights):
     N = df.shape[0]
 
     if args.logs:
-        print(f"Got {np.sum(wrong)} wrong with {N} points")
+        print(f"Got {np.sum(wrong)} wrong out of {N} points")
 
     bias_value = args.exp_params[0]
     bias_weights = np.ones(N)
@@ -137,6 +135,7 @@ def save_results(args, loss_arg, override_experiment=None):
 def run_experiment(args, df, weights):
     global DEPTH_BUDGET
     DEPTH_BUDGET = args.tree_depth
+    np.random.seed(args.seed)
 
     experiment = args.experiment
     if experiment == "gosdt":

@@ -48,7 +48,7 @@ if __name__ == '__main__':
     if args.file is not None:
         df = pd.read_csv(args.file)
     else:
-        df = generate_data(args.data_gen_type, *args.data_gen_args)
+        df = generate_data(args.data_gen_type, args.seed, *args.data_gen_args)
 
     np.random.seed(args.seed)
     rand.seed(args.seed)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     selected_label = 1 # to make the circular simpler
     is_selected_label = df[df.iloc[:,-1] == selected_label]
 
-    weights = sample_weights(args.weight_dist, df.shape[0], args.p, is_selected_label.index.values, *args.weight_args)
+    weights = sample_weights(args.weight_dist, df.shape[0], args.p, is_selected_label.index.values, args.seed, *args.weight_args)
     weights = weights / weights.sum()
 
     run_experiment(args, df, weights)

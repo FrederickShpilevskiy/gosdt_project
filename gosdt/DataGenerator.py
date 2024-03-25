@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import sklearn.datasets as datasets
-
-from random import randint, shuffle, choice
+import random as rand
 
 
 # start with 2 classes
@@ -17,8 +16,8 @@ from random import randint, shuffle, choice
 def lin_seperable_with_mistakes(d_sep: int, n: int, num_classes: int, p_mistake:float):
     sep_feat_ranges = []
     for _ in range(d_sep):
-        start = randint(-10, 0) # starting vals
-        width = randint(3,5) # range of values for each class
+        start = rand.randint(-10, 0) # starting vals
+        width = rand.randint(3,5) # range of values for each class
         # end = randint(start+(num_classes-1)*width, start + width*num_classes)
         end = start + num_classes*width
         sep_feat_ranges.append((start, width, end))
@@ -38,7 +37,7 @@ def lin_seperable_with_mistakes(d_sep: int, n: int, num_classes: int, p_mistake:
             row = {}
             for feat in range(d_sep):
                 start, width, end = sep_feat_ranges[feat]
-                val = randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
+                val = rand.randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
                 row[f"sep_{feat}"] = val
 
                 # for feat in range(d_overlap):
@@ -52,16 +51,16 @@ def lin_seperable_with_mistakes(d_sep: int, n: int, num_classes: int, p_mistake:
             row = {}
             for feat in range(d_sep):
                 start, width, end = sep_feat_ranges[feat]
-                val = randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
+                val = rand.randint(start + width*label, start + width*(label+1) - 1) # -1 since inclusive
                 row[f"sep_{feat}"] = val
 
             # Mistake = any label but the right one
             non_target_labels = list(set(range(num_classes)) - set([label]))
-            row["target"] = choice(non_target_labels)
+            row["target"] = rand.choice(non_target_labels)
             data.append(row)
 
 
-    shuffle(data)
+    rand.shuffle(data)
     return pd.DataFrame(data)
 
     
@@ -87,9 +86,9 @@ def xor(d: int, n: int):
 
         for feat in range(d):
             if feat == curr_d_to_false:
-                val = randint(-20,0)
+                val = rand.randint(-20,0)
             else:
-                val = randint(1, 20)
+                val = rand.randint(1, 20)
 
             row[f"feat_{feat}"] = val
         
@@ -101,7 +100,7 @@ def xor(d: int, n: int):
     for _ in range(num_per_class//2):
         row = {}
         for i in range(d):
-            val = randint(-20, 0)
+            val = rand.randint(-20, 0)
             row[f"feat_{i}"] = val
         
         row[f"xor"] = 0
@@ -110,13 +109,13 @@ def xor(d: int, n: int):
     for _ in range(num_per_class // 2):
         row = {}
         for i in range(d):
-            val = randint(1, 20)
+            val = rand.randint(1, 20)
             row[f"feat_{i}"] = val
         
         row["xor"] = 0
         data.append(row)
 
-    shuffle(data)
+    rand.shuffle(data)
     return pd.DataFrame(data)
 
 # Idea: make 3 circles, middle one with less weight and the outter + inner with equal larger weight
@@ -155,7 +154,9 @@ def circular(N):
 
     return pd.DataFrame(np.concatenate((X, y), axis=1))
 
-def generate_data(gen_method, *kwargs):
+def generate_data(gen_method, seed, *kwargs):
+    np.random.seed(seed)
+    rand.seed(seed)
     if gen_method == "xor":
         return xor(int(kwargs[0]), int(kwargs[1]))
     elif gen_method == "lin_sep":

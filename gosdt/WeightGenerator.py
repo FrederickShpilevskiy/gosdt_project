@@ -32,7 +32,9 @@ def adversarial_class_bias(N, is_selected, percent_keep):
     return weights
 
 # is selected used if you want to sample based on a particular label's entries, see main for selection
-def sample_weights(dist, N, p, is_selected, *kwargs):
+def sample_weights(dist, N, p, is_selected, seed, *kwargs):
+    np.random.seed(seed)
+    rand.seed(seed)
     if dist == 'exponential':
         return np.random.exponential(scale=1/float(kwargs[0]), size=N)
     if dist == 'binary':
