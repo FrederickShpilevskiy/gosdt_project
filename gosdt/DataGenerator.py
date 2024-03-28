@@ -118,41 +118,71 @@ def xor(d: int, n: int):
     rand.shuffle(data)
     return pd.DataFrame(data)
 
+# According to https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
+def generate_circular_points(N, d, radius, label):
+    points_per_feat = []
+    thetas = []
+    for i in range(d-1):
+      thetas.append(np.random.rand(N) * 2 * np.pi)
+    
+    for i in range(d-1):
+      points_x_i = np.ones(N) * radius
+      for j in range(i):
+        points_x_i = points_x_i * np.sin(thetas[j])
+      
+      points_x_i = points_x_i * np.cos(thetas[i])
+      points_per_feat.append(points_x_i)
+
+    # last one is all sin
+    points_x_last = np.ones(N) * radius
+    for i in range(d-1):
+      points_x_last = points_x_last * np.sin(thetas[i])
+
+    points_per_feat.append(points_x_last)
+    
+
+    X = np.vstack(points_per_feat).T
+    y = (np.ones(N) * label).reshape(-1, 1)
+
+    return X, y
+
 # Idea: make 3 circles, middle one with less weight and the outter + inner with equal larger weight
 # Label inner and outer as 1, middle as 0
 # TODO: consider adding more points to middle
-def circular(N):
+def circular_d(N, d, center=None):
     # Parameters for the three circles
     n_samples = N // 3
-    circle1_radius = 1
-    circle2_radius = 2
-    circle3_radius = 3
+
+    if center is not None:
+        try:
+            shape = center.shape
+        except AttributeError:
+            print("Error: given center is not a numpy array")
+            exit()
+        if shape != (d,):
+            print(f"Error: given center has wrong shape, should be ({d},)")
+
+    else:
+        center = np.zeros(d)        
 
     # Generate points for each circle
-    theta1 = np.random.rand(n_samples) * 2 * np.pi
-    circle1_x = circle1_radius * np.cos(theta1)
-    circle1_y = circle1_radius * np.sin(theta1)
-    y_1 = np.ones(n_samples).reshape(-1, 1)
+    sphere_inner, y_inner = generate_circular_points(n_samples, d, 1, 1)
+    sphere_middle, y_middle = generate_circular_points(n_samples, d, 2, 0)
+    sphere_outer, y_outer = generate_circular_points(n_samples, d, 3, 1)
 
-    theta2 = np.random.rand(n_samples) * 2 * np.pi
-    circle2_x = circle2_radius * np.cos(theta2)
-    circle2_y = circle2_radius * np.sin(theta2)
-    y_2 = np.zeros(n_samples).reshape(-1, 1)
-
-    theta3 = np.random.rand(n_samples) * 2 * np.pi
-    circle3_x = circle3_radius * np.cos(theta3)
-    circle3_y = circle3_radius * np.sin(theta3)
-    y_3 = np.ones(n_samples).reshape(-1 ,1)
+    sphere_inner += center
+    sphere_middle += center
+    sphere_outer += center
 
     # Combine points from all circles
-    X = np.vstack([np.vstack([circle1_x, circle1_y]).T,
-                   np.vstack([circle2_x, circle2_y]).T,
-                   np.vstack([circle3_x, circle3_y]).T])
+    X = np.vstack([sphere_inner, sphere_middle, sphere_outer])
 
     # Create labels for the circles
-    y = np.vstack([y_1, y_2, y_3])
+    y = np.vstack([y_inner, y_middle, y_outer])
 
-    return pd.DataFrame(np.concatenate((X, y), axis=1))
+    col_labels = [f"x{i}" for i in range(d)]
+    col_labels.append("y")
+    return pd.DataFrame(np.concatenate((X, y), axis=1), columns=col_labels)
 
 def generate_data(gen_method, seed, *kwargs):
     np.random.seed(seed)
@@ -162,6 +192,11 @@ def generate_data(gen_method, seed, *kwargs):
     elif gen_method == "lin_sep":
         return lin_seperable_with_mistakes(int(kwargs[0]), int(kwargs[1]), int(kwargs[2]), kwargs[3])
     elif gen_method == "circular":
-        return circular(int(kwargs[0]))
+        # I am sure there is a better way to do center as a hyper-param arg, but this works so going with the quick and dirty for now
+        if kwargs[2:] == ():
+            center = None
+        else:
+            center = np.array(kwargs[2:])
+        return circular_d(int(kwargs[0]), int(kwargs[1]), center=center)
     else:
         print("Data Gen Method does not exist")

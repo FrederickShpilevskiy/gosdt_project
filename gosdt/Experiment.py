@@ -118,16 +118,23 @@ def scikit_bias_experiment(args, df, weights):
 def save_results(args, loss_arg, override_experiment=None):
     if args.file is not None:
         data_source = args.file
+        data_gen_params = list()
     else:
-        data_source = f"{args.data_gen_type}({'-'.join(map(str, args.data_gen_args))})"
+        data_source = args.data_gen_type
+        data_gen_params = args.data_gen_args
+
+    if override_experiment is None:
+        experiment = args.experiment
+    else:
+        experiment = override_experiment
 
     if args.out is not None:
         import os.path
         add_header = not os.path.exists(args.out)
         with open(args.out, 'a+') as file:
             if add_header:
-                file.write('seed,sampling_method,data_gen,distribution,p,experiment,exp_params,tree_depth,loss\n')
-            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {args.weight_dist}({"-".join(map(str, args.weight_args))}), {args.p}, {args.experiment if override_experiment is None else override_experiment}, {args.exp_params}, {args.tree_depth}, {loss_arg}\n')
+                file.write('seed,sampling_method,data_source,data_args,distribution,dist_args,p,experiment,exp_params,tree_depth,loss\n')
+            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {data_gen_params}, {args.weight_dist}, {args.weight_args}, {args.p}, {experiment}, {args.exp_params}, {args.tree_depth}, {loss_arg}\n')
     
     else:
         print(f"loss: {loss_arg}")
