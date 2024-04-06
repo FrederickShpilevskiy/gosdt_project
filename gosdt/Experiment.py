@@ -23,7 +23,7 @@ def weighted_loss(model, X, y, weights):
     loss = (y.reshape(-1) != preds).astype(float)
     return (loss * weights).sum()
 
-def gosdt_experiment(args, df, weights, should_dup=False):
+def gosdt_experiment(args, df, weights, should_dup=False, plot_loc=None):
     if args.logs:
         print("Gosdt Experiment")
 
@@ -51,10 +51,13 @@ def gosdt_experiment(args, df, weights, should_dup=False):
     X_test, y_test = df.iloc[:, :-1], df.iloc[:, -1]
     X_test_enc = threshold_enc.transform(X_test)
 
+    if plot_loc is not None:
+        plot_2d_separator(args, clf, X_test.to_numpy(), y_test.to_numpy(), plot_loc, encoder=threshold_enc) 
+
     return weighted_loss(clf, X_test_enc, y_test.to_numpy(), weights), wrong 
 
 
-def scikit_experiment(args, df, weights, should_dup=False):
+def scikit_experiment(args, df, weights, should_dup=False, plot_loc=None):
     if args.logs:
         print("Scikit Experiment")
 
@@ -68,9 +71,13 @@ def scikit_experiment(args, df, weights, should_dup=False):
     clf.fit(X,y)
 
     # not real "test" set, we are just interested in performance on all data
-    X_test = df.iloc[:,:-1].values
-    y_test = df.iloc[:,-1].values
+    X_test = df.iloc[:,:-1].to_numpy()
+    y_test = df.iloc[:,-1].to_numpy()
     wrong = clf.predict(X_test) != y_test.reshape(-1)
+
+    if plot_loc is not None:
+        plot_2d_separator(args, clf, X_test, y_test, plot_loc) 
+
     return weighted_loss(clf, X_test, y_test, weights), wrong
 
 def gosdt_bias_experiment(args, df, weights):
@@ -92,7 +99,8 @@ def gosdt_bias_experiment(args, df, weights):
         print("Made weights")
         print(bias_weights[:10])
 
-    weighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights, should_dup=True)
+    # Just make plot for the weighted tree
+    weighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights, should_dup=True, plot_loc=args.plot_loc)
     unweighted_tree_loss, _ = gosdt_experiment(args, df, bias_weights)
     if args.logs:
         print("done weighted tree")
@@ -109,7 +117,8 @@ def scikit_bias_experiment(args, df, weights):
     bias_weights[wrong] = bias_value
     bias_weights = bias_weights / np.sum(bias_weights)
 
-    weighted_tree_loss, _ = scikit_experiment(args, df, bias_weights, should_dup=True)
+    # Just make plot for weighted tree
+    weighted_tree_loss, _ = scikit_experiment(args, df, bias_weights, should_dup=True, plot_loc=args.plot_loc)
     unweighted_tree_loss, _ = scikit_experiment(args, df, bias_weights)
     save_results(args, unweighted_tree_loss, override_experiment="unweighted_tree")
     save_results(args, weighted_tree_loss, override_experiment="weighted_tree")
@@ -139,6 +148,77 @@ def save_results(args, loss_arg, override_experiment=None):
     else:
         print(f"loss: {loss_arg}")
 
+# Adapted from UBC CPSC 330 Course
+# GOSDT transforms the features so we need a copy of the encoder too
+def plot_2d_separator(args, clf, X, y, plot_loc, encoder=None):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import matplotlib.colors as mcolors
+
+    ax = plt.gca()
+    eps = X.std()/2
+
+    x_min, x_max = X[:, 0].min() - eps, X[:, 0].max() + eps
+    y_min, y_max = X[:, 1].min() - eps, X[:, 1].max() + eps
+    xx = np.linspace(x_min, x_max, 1000)
+    yy = np.linspace(y_min, y_max, 1000)
+
+    X1, X2 = np.meshgrid(xx, yy)
+    X_grid = np.c_[X1.ravel(), X2.ravel()]
+
+
+    # min1, max1 = X[:, 0].min()-eps, X[:, 0].max()+eps
+    # min2, max2 = X[:, 1].min()-eps, X[:, 1].max()+eps
+    # # define the x and y scale
+    # x1grid = np.arange(min1, max1, 0.1)
+    # x2grid = np.arange(min2, max2, 0.1)
+    # # create all of the lines and rows of the grid
+    # xx, yy = np.meshgrid(x1grid, x2grid)
+    # # flatten each grid to a vector
+    # r1, r2 = xx.flatten(), yy.flatten()
+    # r1, r2 = r1.reshape((len(r1), 1)), r2.reshape((len(r2), 1))
+    # grid = np.hstack((r1,r2))
+    cmap_scatter = sns.color_palette("hls", len(np.unique(y))) # "hsv" is just an example, you can use other categorical color palettes like "Set2", "tab10" etc.
+    sns.set_palette(cmap_scatter)
+
+    # Define a colormap for contourf plot
+    cont_colors = sns.color_palette("husl", len(np.unique(y)))
+    cmap_contourf = mcolors.ListedColormap(cont_colors.as_hex())
+
+    if encoder is not None:
+        X_grid_enc = encoder.transform(X_grid)
+        y_hat = clf.predict(X_grid_enc)
+    else:
+        y_hat = clf.predict(X_grid)
+
+    contr = y_hat.reshape(X1.shape)
+    plt.contourf(xx, yy, contr, cmap=cmap_contourf)
+
+    df = pd.DataFrame(data=np.c_[X, y], columns=["x1", "x2", "y"])
+
+    sns.scatterplot(data=df, x="x1", y="x2", hue=y, ax=ax, edgecolor='black')
+
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_xticks(np.linspace(x_min, x_max, num=10))
+    ax.set_yticks(np.linspace(y_min, y_max, num=10))
+    ax.set_xlabel("X1")
+    ax.set_ylabel("X2")
+
+    title = ""
+    if args.file is not None:
+        title += args.file
+    else:
+        title += f"{args.data_gen_type}({args.data_gen_args})"
+    
+    title += f" {args.experiment} using {args.data_dup}"
+
+    ax.set_title(title)
+
+    plt.tight_layout()
+
+    plt.savefig(plot_loc)
+
 def run_experiment(args, df, weights):
     global DEPTH_BUDGET
     DEPTH_BUDGET = args.tree_depth
@@ -146,16 +226,16 @@ def run_experiment(args, df, weights):
 
     experiment = args.experiment
     if experiment == "gosdt":
-        loss, _ = gosdt_experiment(args, df, weights, should_dup=True)
+        loss, _ = gosdt_experiment(args, df, weights, should_dup=True, plot_loc=args.plot_loc)
         save_results(args, loss)
     elif experiment == "gosdt-fit-without-weights":
-        loss, _ = gosdt_experiment(args, df, weights)
+        loss, _ = gosdt_experiment(args, df, weights, plot_loc=args.plot_loc)
         save_results(args, loss)
     elif experiment == "scikit":
-        loss, _ = scikit_experiment(args, df, weights, should_dup=True)
+        loss, _ = scikit_experiment(args, df, weights, should_dup=True, plot_loc=args.plot_loc)
         save_results(args, loss)
     elif experiment == "scikit-fit-without-weights":
-        loss, _ = scikit_experiment(args, df, weights)
+        loss, _ = scikit_experiment(args, df, weights, plot_loc=args.plot_loc)
         save_results(args, loss)
     elif experiment == 'gosdt-bias-to-errors':
         gosdt_bias_experiment(args, df, weights)
