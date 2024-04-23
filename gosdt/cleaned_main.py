@@ -10,16 +10,17 @@ from DataGenerator import generate_data
 WEIGHTING_TYPES = ['exponential', 'binary', 'none', 'adversarial-single-point', 'adversarial-class-bias',\
                    'bias_one_class', 'bias_single_point']
 DATA_DUPLICATION_TYPES = ['deterministic', 'sampling', 'mathias']
-DATA_GENERATION_TYPES = ["xor", "lin_sep", "circular", "test"]
+DATA_GENERATION_TYPES = ["xor", "lin_sep", "circular", "test", "multiball"]
 EXPERIMENT_TYPE = ['gosdt', 'scikit', 'gosdt-fit-without-weights', 'scikit-fit-without-weights',\
                    'gosdt-bias-to-errors', 'scikit-bias-to-errors']
-
+PLOT_TYPES = ['undup', 'resamp']
 
 def collect_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, help='path to data as csv')
     parser.add_argument('--seed', type=int, default=42, help='Seed for experiment')
     parser.add_argument('--plot_loc', type=str, default=None, help='specific out path if you want to plot the decisions')
+    parser.add_argument('--plot_type', type=str, help='What points to plot the decision regions on', choices=PLOT_TYPES)
     parser.add_argument('--out', type=str, help='Where results are written to')
     parser.add_argument('--logs', action='store_true', help="Toggle for logged messages")
 

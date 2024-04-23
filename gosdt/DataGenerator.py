@@ -184,6 +184,26 @@ def circular_d(N, d, center=None):
     col_labels.append("y")
     return pd.DataFrame(np.concatenate((X, y), axis=1), columns=col_labels)
 
+def multiball(N, d):
+    # Very contrived centers for now (generalize later)
+    N_balls = 4
+    N_per_ball = N//N_balls
+    all_pos = np.ones(d)*10
+    all_neg = np.ones(d)*-10
+    front_half = np.ones(d)
+    front_half[:d//2] = front_half[:d//2]*-10
+    front_half[d//2:] = front_half[d//2:]*10
+    back_half = np.ones(d)
+    back_half[:d//2] = back_half[:d//2]*10
+    back_half[d//2:] = back_half[d//2:]*-10
+
+    all_pos_df = circular_d(N_per_ball, d, center=all_pos)
+    all_neg_df = circular_d(N_per_ball, d, center=all_neg)
+    front_half_df = circular_d(N_per_ball, d, center=front_half)
+    back_half_df = circular_d(N_per_ball, d, center=back_half)
+
+    return pd.concat([all_pos_df, all_neg_df, front_half_df, back_half_df], ignore_index=True)
+
 def generate_data(gen_method, seed, *kwargs):
     np.random.seed(seed)
     rand.seed(seed)
@@ -198,5 +218,7 @@ def generate_data(gen_method, seed, *kwargs):
         else:
             center = np.array(kwargs[2:])
         return circular_d(int(kwargs[0]), int(kwargs[1]), center=center)
+    elif gen_method == "multiball":
+        return multiball(int(kwargs[0]), int(kwargs[1]))
     else:
         print("Data Gen Method does not exist")

@@ -52,7 +52,7 @@ def gosdt_experiment(args, df, weights, should_dup=False, plot_loc=None):
     X_test_enc = threshold_enc.transform(X_test)
 
     if plot_loc is not None:
-        plot_2d_separator(args, clf, X_test.to_numpy(), y_test.to_numpy(), plot_loc, encoder=threshold_enc) 
+        plot_2d_separator(args, clf, X_test.to_numpy(), y_test.to_numpy(), plot_loc, sampled_df, encoder=threshold_enc) 
 
     return weighted_loss(clf, X_test_enc, y_test.to_numpy(), weights), wrong 
 
@@ -76,7 +76,7 @@ def scikit_experiment(args, df, weights, should_dup=False, plot_loc=None):
     wrong = clf.predict(X_test) != y_test.reshape(-1)
 
     if plot_loc is not None:
-        plot_2d_separator(args, clf, X_test, y_test, plot_loc) 
+        plot_2d_separator(args, clf, X_test, y_test, plot_loc, sampled_df) 
 
     return weighted_loss(clf, X_test, y_test, weights), wrong
 
@@ -131,11 +131,15 @@ def save_results(args, loss_arg, override_experiment=None):
     else:
         data_source = args.data_gen_type
         data_gen_params = args.data_gen_args
+    data_gen_params = str(data_gen_params).replace(", ", "-")
 
     if override_experiment is None:
         experiment = args.experiment
     else:
         experiment = override_experiment
+
+    weight_args = str(args.weight_args).replace(", ", "-")
+    exp_args = str(args.exp_params).replace(", ", "-")
 
     if args.out is not None:
         import os.path
@@ -143,14 +147,14 @@ def save_results(args, loss_arg, override_experiment=None):
         with open(args.out, 'a+') as file:
             if add_header:
                 file.write('seed,sampling_method,data_source,data_args,distribution,dist_args,p,experiment,exp_params,tree_depth,loss\n')
-            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {data_gen_params}, {args.weight_dist}, {args.weight_args}, {args.p}, {experiment}, {args.exp_params}, {args.tree_depth}, {loss_arg}\n')
+            file.write(f'{args.seed}, {args.data_dup}, {data_source}, {data_gen_params}, {args.weight_dist}, {weight_args}, {args.p}, {experiment}, {exp_args}, {args.tree_depth}, {loss_arg}\n')
     
     else:
         print(f"loss: {loss_arg}")
 
 # Adapted from UBC CPSC 330 Course
 # GOSDT transforms the features so we need a copy of the encoder too
-def plot_2d_separator(args, clf, X, y, plot_loc, encoder=None):
+def plot_2d_separator(args, clf, X, y, plot_loc, sampled_df, encoder=None):
     import matplotlib.pyplot as plt
     import seaborn as sns
     import matplotlib.colors as mcolors
@@ -166,18 +170,6 @@ def plot_2d_separator(args, clf, X, y, plot_loc, encoder=None):
     X1, X2 = np.meshgrid(xx, yy)
     X_grid = np.c_[X1.ravel(), X2.ravel()]
 
-
-    # min1, max1 = X[:, 0].min()-eps, X[:, 0].max()+eps
-    # min2, max2 = X[:, 1].min()-eps, X[:, 1].max()+eps
-    # # define the x and y scale
-    # x1grid = np.arange(min1, max1, 0.1)
-    # x2grid = np.arange(min2, max2, 0.1)
-    # # create all of the lines and rows of the grid
-    # xx, yy = np.meshgrid(x1grid, x2grid)
-    # # flatten each grid to a vector
-    # r1, r2 = xx.flatten(), yy.flatten()
-    # r1, r2 = r1.reshape((len(r1), 1)), r2.reshape((len(r2), 1))
-    # grid = np.hstack((r1,r2))
     cmap_scatter = sns.color_palette("hls", len(np.unique(y))) # "hsv" is just an example, you can use other categorical color palettes like "Set2", "tab10" etc.
     sns.set_palette(cmap_scatter)
 
@@ -196,8 +188,16 @@ def plot_2d_separator(args, clf, X, y, plot_loc, encoder=None):
 
     df = pd.DataFrame(data=np.c_[X, y], columns=["x1", "x2", "y"])
 
-    sns.scatterplot(data=df, x="x1", y="x2", hue=y, ax=ax, edgecolor='black')
-
+    if args.plot_type == "undup":
+        sns.scatterplot(data=df, x="x1", y="x2", hue=y, ax=ax, edgecolor='black')
+    elif args.plot_type == "resamp":
+        X, y = sampled_df.iloc[:, :-1], sampled_df.iloc[:, -1]
+        sampled_df = pd.DataFrame(data=np.c_[X,y], columns=["x1", "x2", "y"])
+        sns.scatterplot(data=sampled_df, x="x1", y="x2", hue=y, ax=ax, edgecolor='black')
+    else:
+        print("Must specify plot_type and plot_loc")
+        exit()
+    
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
     ax.set_xticks(np.linspace(x_min, x_max, num=10))
