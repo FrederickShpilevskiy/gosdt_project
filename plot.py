@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+
 from ast import literal_eval
 
 N = 10459
@@ -54,8 +55,13 @@ def extract_dist_params_second_num_only(row):
 
 # For new formatted params
 def extract_data_summary(row):
-    data_type = row["data_source"]
-    return f"{data_type}({", ".join(map(str, row["data_args"]))})"
+    param_selector = 0
+    dist_string = row["data_gen"]
+    dist_type = dist_string.split('(')[0]
+    extracted_str = dist_string.split('(')[1].split('-')[param_selector]
+    if extracted_str[-1] == ")":
+        extracted_str = extracted_str[:-1]
+    return dist_type + "(" + extracted_str + ")"
 
 def extract_data_gen_params_first_num_only(row):
     param_selector = 0
@@ -176,11 +182,15 @@ def compare_experiments(df, out_path):
     df["class_weight"] = df["dist_args"].apply(extract_list_elemement(0))
     df["mistake_weight"] = df["exp_params"].apply(extract_list_elemement(0))
 
+    df["sampling_method"] = df['sampling_method'].str.strip()
+    df["data_gen"] = df["data_gen"].str.strip()
     # df["weighing scheme"] = df.apply(extract_multiple_dist_params, axis=1)
     # df["weight_arg_1"] = df.apply(extract_dist_params_first_num_only, axis=1)
     # df["weight_arg_2"] = df.apply(extract_dist_params_second_num_only, axis=1)
     df["data_summary"] = df.apply(extract_data_summary, axis=1)
     # df["data_arg_1"] = df.apply(extract_data_gen_params_i(0), axis=1)
+    # df["data_arg_2"] = df.apply(extract_data_gen_params_i(1), axis=1)
+    df["data_arg_1"] = df.apply(extract_data_gen_params_i(0), axis=1)
     # df["data_arg_2"] = df.apply(extract_data_gen_params_i(1), axis=1)
     # df["data_arg_4"] = df.apply(extract_data_gen_params_i(3), axis=1)
 
@@ -224,9 +234,11 @@ def compare_experiments(df, out_path):
     print(df["class_weight"].unique())
 
     ax = sns.barplot(data=selected_df, hue="sampling_method", x="data_summary", y="loss")
+    ax = sns.barplot(data=selected_df, hue="sampling_method", x="data_summary", y="loss")
     # ax.set_title(f"Loss for lin sep (mistake p={data_gen_args[0]}) point bias weight = {dist_args}")
     ax.set_title(f"Loss for Circular")
     sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45)
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(out_path)
